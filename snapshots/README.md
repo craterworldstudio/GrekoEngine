@@ -12,6 +12,7 @@ This folder contains versioned snapshots of the project at key stages.
 - Custom MToon shader
 - Verified morph targets exist in GLB
 - Assimp discarding facial blendshapes
+- Proper Lighting Setup and Debug UI.
 
 ---
 
