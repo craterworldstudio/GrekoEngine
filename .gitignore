@@ -1,1 +1,8 @@
-assets
+assets/
+venv/
+__pycache__/
+*.pyc
+*.log
+VidLogs/
+current_session.json
+lighting.json
