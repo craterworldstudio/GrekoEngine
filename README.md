@@ -10,7 +10,7 @@ custom MToon shading, and full facial expression support.
 > These snapshots document major architectural decisions, failures,
 > discoveries, and turning points during development.
 
-➡️ **[Browse Project Snapshots](Snapshots/README.md)**
+➡️ **[Browse Project Snapshots](snapshots/README.md)**
 
 ---
 
