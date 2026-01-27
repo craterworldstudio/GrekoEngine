@@ -88,7 +88,7 @@ import gltf, json
 import simplepbr
 from engine.base_engine import VroidEngine
 from engine.entity import Entity
-from vrmmanager.vrm_handler import VRMHandler
+from vrmmanager.vrm_handler import VRMHandler, HybridVRMHandler
 from engine.camera_controller import CameraController
 
 
@@ -98,8 +98,8 @@ class VRoidCharacter(Entity):
 
         super().__init__(name=char_config["name"])
         self.engine = engine
-        self.handler = VRMHandler(engine)
-
+        self.handler = HybridVRMHandler(engine)
+        
         # FLAG: Terminal Silencer
         # We temporarily redirect stderr to stop the aiBone spam.
         actual_stderr = sys.stderr
@@ -109,7 +109,8 @@ class VRoidCharacter(Entity):
         try:
             # This is where the noisy loading happens
             vrm_path = char_config["fixed_path"]
-            self.model = self.handler.load_character(vrm_path)
+            #self.model = self.handler.load_character(vrm_path)
+            self.model, self.face_controller = self.handler.load_hybrid_character(vrm_path)
         finally:
             # FLAG: Restore the Terminal
             # We MUST bring back stderr or we won't see actual Python crashes!
@@ -147,6 +148,17 @@ class VRoidCharacter(Entity):
             self.model.set_pos(*pos)
             self.model.set_p(90)
             print(f"✅ {self.name} is rendered with MToon logic.")
+
+            print(f"Loading Behaviors.....")
+
+             # --- BLINKER ---
+            if self.face_controller:
+                from vrmmanager.behaviours.blinker import HybridBlinker
+                self.blinker = HybridBlinker(self.face_controller)
+                self.blinker.start()
+            else:
+                print("⚠️ Face controller not found. Blinking disabled.")
+            
 
     def update(self, dt: float):
         """

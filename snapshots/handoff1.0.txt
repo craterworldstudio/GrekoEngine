@@ -1,0 +1,19 @@
+PROJECT CONTEXT — GREKO GAME ENGINE (VRM)
+
+- Panda3D-based custom engine
+- Assimp currently used via Panda3D loader (TO BE REMOVED)
+- Major issue: Assimp prunes head bone + renames morphs
+- Goal: Native VRM/GLB loader replacing Assimp entirely
+
+Entry:
+- EntRunner.py → vrmFixer.py → main.py
+
+Current Loader Path:
+- vrmmanager/vrm_handler.py calls loader.load_model()
+- face_loader.py partially native but fighting Assimp output
+
+Phase 1 Goal:
+- Native GLB/VRM loader
+- Preserve skeleton & morph names
+- Integrate with existing Entity + shader system
+- NO greenfield rewrite

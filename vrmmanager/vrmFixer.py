@@ -20,14 +20,14 @@ def fix_vrm_for_panda(input_path, output_path):
         # FLAG: The "Panda-Killer" Extensions
         # These tell the loader 'Don't load me unless you understand VRM 1.0'
         # By removing them, Panda treats it as a standard GLB skeleton.
-        forbidden = [ 'VRMC_springBone', 'VRMC_node_constraint']
-        #forbidden = []
+        #forbidden = [ 'VRMC_springBone', 'VRMC_node_constraint']
+        forbidden = []
 
-        # 1. Remove from Required: This stops the "Unknown Extension" crash.
+        '''# 1. Remove from Required: This stops the "Unknown Extension" crash.
         if 'extensionsRequired' in gltf_dict:
             gltf_dict['extensionsRequired'] = [
                 e for e in gltf_dict['extensionsRequired'] if e not in forbidden
-            ]
+            ]'''
 
         #We hide this to enable blendshapes!
         """if 'extensionsUsed' in gltf_dict:

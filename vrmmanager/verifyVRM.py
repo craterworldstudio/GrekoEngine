@@ -1,14 +1,14 @@
 # verifyMorph.py
 # Verifies whether morph targets (blendshapes) exist in a GLB file
 # AFTER vrmFixer.py processing.
-# This ONLY inspects the JSON chunk (authoritative truth).
+# ALSO exports the JSON chunk to a separate .json file for inspection.
 
 import json
 import struct
 import sys
 import os
 
-def verify_morphs(glb_path):
+def verify_morphs(glb_path, export_json=True):
     if not os.path.exists(glb_path):
         print(f"❌ File not found: {glb_path}")
         return
@@ -45,6 +45,13 @@ def verify_morphs(glb_path):
 
     gltf = json.loads(json_chunk.decode("utf-8"))
 
+    # ---- EXPORT JSON ----
+    if export_json:
+        json_path = os.path.splitext(glb_path)[0] + "_export.json"
+        with open(json_path, "w", encoding="utf-8") as jf:
+            json.dump(gltf, jf, indent=2)
+        print(f"💾 JSON chunk exported to: {json_path}")
+
     # ---- MORPH INSPECTION ----
     meshes = gltf.get("meshes", [])
     if not meshes:
@@ -76,14 +83,12 @@ def verify_morphs(glb_path):
         print("🎯 Morph targets ARE present in the GLB")
         print("👉 If Panda3D cannot see them, Assimp is 100% the culprit")
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     path = "/home/tori/Codestuff/GrekoGameEngine/assets/kisayo_fixed.glb"
+
+    # Optional: allow CLI override
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+
     verify_morphs(path)
-    '''
-    if len(sys.argv) < 2:
-        print("Usage: python verifyMorph.py <file.glb>")
-    else:
-        path = "/home/tori/Codestuff/GrekoGameEngine/assets/kisayo_fixed.glb"
-        verify_morphs(sys.argv[1])
-'''

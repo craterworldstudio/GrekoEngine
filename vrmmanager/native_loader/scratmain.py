@@ -47,38 +47,38 @@ else:
 
 print("\n✅ Phase 1.2 accessor tests passed")
 
-from panda3d.core import LineSegs, NodePath
+from panda3d.core import LineSegs, NodePath, Point3
 
 def draw_skeleton_debug(character_np, joint_map, parent_map):
     lines = LineSegs()
     lines.set_thickness(2.0)
 
-    for idx, joint in joint_map.items():
-        parent_idx = parent_map.get(idx)
+    for joint_idx, joint in joint_map.items():
+        parent_idx = parent_map.get(joint_idx)
         if parent_idx is None:
             continue
 
         parent_joint = joint_map[parent_idx]
 
-        joint_np = character_np.attach_new_node(joint)
-        parent_np = character_np.attach_new_node(parent_joint)
+        # Get joint transforms (joint-local → character space)
+        joint_mat = joint.get_transform()
+        parent_mat = parent_joint.get_transform()
 
-        joint_pos = joint_np.get_pos(character_np)
-        parent_pos = parent_np.get_pos(character_np)
+        joint_pos = joint_mat.xform_point(Point3(0, 0, 0))
+        parent_pos = parent_mat.xform_point(Point3(0, 0, 0))
 
         lines.move_to(parent_pos)
         lines.draw_to(joint_pos)
 
-        joint_np.remove_node()
-        parent_np.remove_node()
-
     return character_np.attach_new_node(lines.create())
+
 
 
 
 import sys
 from direct.showbase.ShowBase import ShowBase
 from geometry_builder import build_panda_mesh
+from direct.actor.Actor import Actor
 
 from skin_builder import build_vrm_skeleton
 
@@ -90,65 +90,72 @@ class GrekoVisualTest(ShowBase):
         # Most VRMs have one 'skin', so we use index 0.
         print("[TEST] Reconstructing Joint Hierarchy...")
         # 1. Start Skeleton Build
-        char_node, joints_map = build_vrm_skeleton(
+        char_node, joints_map, parent_map = build_vrm_skeleton(
             parsed_glb.json, 
             parsed_glb.bin_blob, 
             0, 
             read_accessor
         )
-        
+        temp_np = NodePath(char_node)
+
+        #self.character_np = Actor(temp_np)
         self.character_np = self.render.attach_new_node(char_node)
+        self.character_np.reparent_to(self.render)
+
+        
         self.character_np.set_p(90)
-        self.skel_debug = draw_skeleton_debug(self.character_np, joints_map)
 
         # 2. START MESH LOGS (Phase 1.3 Content)
         print(f"[TEST] Loading and Binding Skinned Meshes...")
         total_prims = 0
+        skin_joints_indices = parsed_glb.json["skins"][0]["joints"]
+        ordered_joints = [joints_map[idx] for idx in skin_joints_indices]
 
         for m_idx, mesh_json in enumerate(parsed_glb.json.get("meshes", [])):
             mesh_name = mesh_json.get("name", f"Mesh_{m_idx}")
             for p_idx, primitive in enumerate(mesh_json["primitives"]):
                 # This provides the "-> Building {mesh}" feedback you wanted
-                #print(f"  -> Building: {mesh_name} (Primitive {p_idx})")
+                print(f"  -> Building: {mesh_name} (Primitive {p_idx})")
+                
                 
                 geom_node = build_panda_mesh(
                     parsed_glb.json, 
                     parsed_glb.bin_blob, 
                     primitive, 
                     read_accessor,
+                    joints_list=ordered_joints,
                     name=f"{mesh_name}_{p_idx}"
                 )
-                #geom = geom_node.get_geom(0)
-
-                #char_np = NodePath(char_node)
-                #char_np.attach_new_node(geom_node)
-
-                self.character_np.attach_new_node(geom_node)
-
+                
+                
+                geom_np = self.character_np.attach_new_node(geom_node)
+                char_node.addGeom(geom_node)
                 total_prims += 1
 
-        #self.character_np.ls()
-
-        #char_node.get_bundle(0).force_update()
+        print("[TEST] Forcing Bundle Bind...")
         
-        # 2. Update the character node itself
-        #char_node.update()
+        bundle = char_node.get_bundle(0)
+        char_node.force_update()
+        #self.character_np.postFlatten()
 
+        self.character_np.node().set_final(True)
+        
         # 3. PHASE 1.3 LOG (The "Assembled" milestone)
         print(f"✅ Total Primitives Bound: {total_prims}")
         print("🚀 Phase 1.3: All meshes assembled and visible!")
 
         # 4. BONE INSPECTION (The "Bones after 1.3" requirement)
-        print("\n--- [INTERNAL SKELETON HIERARCHY] ---")
+        #print("\n--- [INTERNAL SKELETON HIERARCHY] ---")
         # .write() forces Panda3D to print the actual joint tree inside the bundle
-        from panda3d.core import Notify
+        #from panda3d.core import Notify
         #bundle = char_node.get_bundle(0).write(Notify.out(), 0)
         #bundle.display()
-        #print("\n--- [SCENE GRAPH HIERARCHY] ---")
+
+        print("\n--- [SCENE GRAPH HIERARCHY] ---")
         self.character_np.ls() 
         
         # 5. FINAL MILESTONE
-        print("\n🚀 Phase 1.4: Skeleton bound and hierarchy validated!")
+        print("\n🚀 Phase 1.,5,6: Skeleton bound and hierarchy validated!")
 
         # Camera Setup
         self.cam.set_pos(0, -4, 1.0)
@@ -160,37 +167,56 @@ class GrekoVisualTest(ShowBase):
             if "Head" in joint.get_name():
                 head_joint = joint
                             
-                
 
         if head_joint:
-            # 1. Create the control handle
-            control_np = self.character_np.attach_new_node("HeadControl")
-            control_np.set_mat(
-                self.character_np, 
-                head_joint.get_transform()
-                               )
+            head_bone_name = head_joint.get_name()
 
-            # 2. THE CORRECT FLAG: control_joint
-            # This tells the bundle: "Stop following the default pose for this bone,
-            # and follow this NodePath instead."
-            print(f"Pre-Tilt Joint Transform:\n{head_joint.get_transform()}")
-            bundle = char_node.get_bundle(0)
-            bundle.control_joint(head_joint.get_name(), control_np.node())
-            
+            # 1. The Actor Handshake
+            # This creates a NodePath that 'lives' at the joint's location
+            self.head_control = self.character_np.controlJoint(None, "modelRoot", head_bone_name)
 
-            control_np.show()
-            control_np.show_bounds()
+            if self.head_control:
+                print(f"Pre-Tilt Joint Transform:\n{head_joint.get_transform()}")
+                bundle = char_node.get_bundle(0)
+                bundle.control_joint(head_bone_name, self.head_control.node())
 
-                        
-            
-            #time.sleep(6)
-            # 3. Apply the rotation to the handle
-            control_np.set_h(45)
-            
-            # 4. Update the character
-            char_node.update()
-            
-            print(f"Post-Tilt Joint Transform:\n{head_joint.get_transform()}")
+                def tilt_head_task(task):
+                    if task.time < 2.0:
+                        return task.cont  # Wait for 2 seconds
+                    
+                    if task.time < 3.0:
+                        # Smoothly interpolate from 0 to 45 degrees over 1 second
+                        # (task.time - 2.0) gives us a 0.0 to 1.0 range
+                        current_tilt = (task.time - 2.0) * 45
+                        self.head_control.set_p(current_tilt)
+                        return task.cont
+                    
+                    # Final position lock
+                    self.head_control.set_p(45)
+
+                    bundle.force_update()
+                    char_node.update()
+
+                    print("✅ Delayed Tilt Complete!")
+                    print(f"Post-Tilt Joint Transform:\n{head_joint.get_transform()}")
+                    return task.done
+
+                # 3. Add the task to the manager
+                self.taskMgr.add(tilt_head_task, "TiltHeadTask")
+
+                # 2. Apply movement to the NodePath
+                #print("Tilting head 45 degrees forward...")
+                #self.head_control.set_p(45) # Use P for forward/back tilt in Panda's Z-up
+
+                # 3. THE MISSING FLAG: Force the Bundle to sync
+                # This pushes the NodePath's transform into the actual bone math
+                bundle = char_node.get_bundle(0)
+                bundle.force_update()
+
+                # 4. Final calculation of the hierarchy
+                char_node.update()
+        
+        
         
         #print("🚀 Phase 1.3: All meshes assembled and visible!")
         #print("🚀 Phase 1.4: Skeleton bound and hierarchy validated!")
