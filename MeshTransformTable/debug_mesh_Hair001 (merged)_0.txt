@@ -1,6 +1,6 @@
 Hair001 (merged)_0
   17573 rows.
-  Array 0 (0x7f5b176f8010, [ vertex(3f) normal(3f) texcoord(2f) tangent(4f) transform_index(4s) transform_weight(4f) ]):
+  Array 0 (0x7f649ec71010, [ vertex(3f) normal(3f) texcoord(2f) tangent(4f) transform_index(4s) transform_weight(4f) ]):
     row 0:
       vertex -0.085838 1.60623 -0.0134988
       normal 0.862846 0.0633503 0.501481

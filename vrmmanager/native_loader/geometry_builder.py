@@ -9,8 +9,8 @@ from panda3d.core import (
 
 def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, joints_list=None, name="Mesh"):
     # 1. SETUP GEOMVERTEXFORMAT (Corrected for Panda3D)
-    joint_name = InternalName.getTransformIndex()
-    weight_name = InternalName.getTransformWeight()
+    joint_name = InternalName.get_transform_index()
+    weight_name = InternalName.get_transform_weight()
 
     #print(joint_name, weight_name)
     # First, we create an ArrayFormat which holds the column definitions

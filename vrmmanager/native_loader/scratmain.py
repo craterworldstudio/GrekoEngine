@@ -98,8 +98,8 @@ class GrekoVisualTest(ShowBase):
         )
         temp_np = NodePath(char_node)
 
-        #self.character_np = Actor(temp_np)
-        self.character_np = self.render.attach_new_node(char_node)
+        self.character_np = Actor(temp_np)
+        #self.character_np = self.render.attach_new_node(char_node)
         self.character_np.reparent_to(self.render)
 
         
@@ -128,8 +128,8 @@ class GrekoVisualTest(ShowBase):
                 )
                 
                 
-                geom_np = self.character_np.attach_new_node(geom_node)
-                char_node.addGeom(geom_node)
+                self.character_np.attach_new_node(geom_node)
+                #char_node.addGeom(geom_node)
                 total_prims += 1
 
         print("[TEST] Forcing Bundle Bind...")

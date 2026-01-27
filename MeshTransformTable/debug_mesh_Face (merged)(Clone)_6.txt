@@ -1,6 +1,6 @@
 Face (merged)(Clone)_6
   4220 rows.
-  Array 0 (0x7f5b2884f010, [ vertex(3f) normal(3f) texcoord(2f) tangent(4f) transform_index(4s) transform_weight(4f) ]):
+  Array 0 (0x7f649fd7b010, [ vertex(3f) normal(3f) texcoord(2f) tangent(4f) transform_index(4s) transform_weight(4f) ]):
     row 0:
       vertex 0.0181619 1.47419 0.0491997
       normal -0.696137 0.111653 0.709173
