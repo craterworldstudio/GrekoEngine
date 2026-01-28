@@ -62,9 +62,6 @@ def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, jo
     weight_writer = GeomVertexWriter(v_data, weight_name)
     
 
-    geom = Geom(v_data)
-    #geom.set_animation_type(Geom.AT_hardware)
-
     if "JOINTS_0" in attrs and "WEIGHTS_0" in attrs:
         joints_data = read_accessor_func(gltf_json, bin_blob, attrs["JOINTS_0"])
         weights_data = read_accessor_func(gltf_json, bin_blob, attrs["WEIGHTS_0"])
@@ -108,34 +105,33 @@ def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, jo
         for t in tangents:
             tan_writer.add_data4f(t[0], t[1], t[2], t[3])
 
-    # 3. BUILD GEOMTRIANGLES
-    indices = read_accessor_func(gltf_json, bin_blob, primitive_data["indices"])
-    tris = GeomTriangles(Geom.UH_static)
-    
-    # Panda3D uses the same winding order as GLTF (counter-clockwise)
-    for i in range(0, len(indices), 3):
-        tris.add_vertices(indices[i], indices[i+1], indices[i+2])
-
     #4. Build the Trnasform Table for skinning and mesh deformation
     if joints_list:
         ttable = TransformTable()
         for i, joint in enumerate(joints_list):
             # JointVertexTransform connects the table slot to the actual bone
-            jvt = JointVertexTransform(joint)
+            
             
             # THE MAGIC FIX: Apply the Inverse Bind Matrix
             # This 'zeros out' the bone's world position so the vertex moves 
             # relative to the bone, not the center of the world.
-            if ibms and i < len(ibms):
-                # ibms[i] should be an LMatrix4f from your read_accessor
-                jvt.set_matrix(ibms[i])
             
+            jvt = JointVertexTransform(joint)
             ttable.add_transform(jvt)
+           
         
         # Register the table (makes it immutable/optimized)
         ttable = TransformTable.register_table(ttable)
         # Apply the 'phone book' to the vertex data
         v_data.set_transform_table(ttable)
+
+    # 3. BUILD GEOMTRIANGLES
+    indices = read_accessor_func(gltf_json, bin_blob, primitive_data["indices"])
+    tris = GeomTriangles(Geom.UH_stream)
+    
+    # Panda3D uses the same winding order as GLTF (counter-clockwise)
+    for i in range(0, len(indices), 3):
+        tris.add_vertices(indices[i], indices[i+1], indices[i+2])
 
     # 4. ASSEMBLE GEOMNODE
     geom = Geom(v_data)
@@ -145,9 +141,6 @@ def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, jo
     
     node = GeomNode(name)
     node.add_geom(geom)
-
-    node.set_bounds(OmniBoundingVolume())
-    node.set_final(True)
 
     # 1. Capture the output in a Panda3D-compatible stream
     stream = StringStream()

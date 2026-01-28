@@ -89,9 +89,9 @@ from skin_builder import build_vrm_skeleton
 class GrekoVisualTest(ShowBase):
     def __init__(self, parsed_glb):
         super().__init__()
-        self.setFrameRateMeter(True)
-        self.pipeline = simplepbr.init()
-        self.render.set_shader_auto()
+        self.setFrameRateMeter(True) 
+        self.pipeline = simplepbr.init(use_hardware_skinning=True)
+        #self.render.set_shader_auto()
         # We build the skeleton FIRST. It creates the 'Character' node.
         # Most VRMs have one 'skin', so we use index 0.
         print("[TEST] Reconstructing Joint Hierarchy...")
@@ -102,9 +102,7 @@ class GrekoVisualTest(ShowBase):
             0, 
             read_accessor
         )
-        temp_np = NodePath(char_node)
-
-        self.character_np = Actor(temp_np)
+        self.character_np = NodePath(char_node)
         #self.character_np = self.render.attach_new_node(char_node)
         self.character_np.reparent_to(self.render)
 
@@ -123,7 +121,7 @@ class GrekoVisualTest(ShowBase):
             mesh_name = mesh_json.get("name", f"Mesh_{m_idx}")
             for p_idx, primitive in enumerate(mesh_json["primitives"]):
                 # This provides the "-> Building {mesh}" feedback you wanted
-                print(f"  -> Building: {mesh_name} (Primitive {p_idx})")
+                #print(f"  -> Building: {mesh_name} (Primitive {p_idx})")
                 
                 
 
@@ -138,7 +136,7 @@ class GrekoVisualTest(ShowBase):
                 )
                 
                 
-                self.character_np.attach_new_node(geom_node)
+                mesh_np = self.character_np.attach_new_node(geom_node)
                 #char_node.addGeom(geom_node)
                 total_prims += 1
 
@@ -176,43 +174,45 @@ class GrekoVisualTest(ShowBase):
         for joint in joints_map.values():
             if "Head" in joint.get_name():
                 head_joint = joint
+                break
                             
 
         if head_joint:
             head_bone_name = head_joint.get_name()
-
+            bundle = char_node.get_bundle(0)
             # 1. The Actor Handshake
             # This creates a NodePath that 'lives' at the joint's location
-            self.head_control = self.character_np.controlJoint(None, "modelRoot", head_bone_name)
+            self.head_control = self.character_np.attach_new_node("head_control")
+            bundle.control_joint(head_bone_name, self.head_control.node())
+            #self.head_control = self.character_np.controlJoint(None, "modelRoot", head_bone_name)
 
-            if self.head_control:
-                print(f"Pre-Tilt Joint Transform:\n{head_joint.get_transform()}")
-                bundle = char_node.get_bundle(0)
-                bundle.control_joint(head_bone_name, self.head_control.node())
-
-                def tilt_head_task(task):
-                    if task.time < 2.0:
-                        return task.cont  # Wait for 2 seconds
-                    
-                    if task.time < 3.0:
-                        # Smoothly interpolate from 0 to 45 degrees over 1 second
-                        # (task.time - 2.0) gives us a 0.0 to 1.0 range
-                        current_tilt = (task.time - 2.0) * 45
-                        self.head_control.set_p(current_tilt)
-                        return task.cont
-                    
-                    # Final position lock
-                    self.head_control.set_p(45)
-
+            
+            print(f"Pre-Tilt Joint Transform:\n{head_joint.get_transform()}")
+            bundle = char_node.get_bundle(0)
+            bundle.control_joint(head_bone_name, self.head_control.node())
+            def tilt_head_task(task):
+                if task.time < 2.0:
+                    return task.cont  # Wait for 2 seconds
+                
+                if task.time < 3.0:
+                    # Smoothly interpolate from 0 to 45 degrees over 1 second
+                    # (task.time - 2.0) gives us a 0.0 to 1.0 range
+                    current_tilt = (task.time - 2.0) * 45
+                    self.head_control.set_p(current_tilt)
                     bundle.force_update()
-                    char_node.update()
 
-                    print("✅ Delayed Tilt Complete!")
-                    print(f"Post-Tilt Joint Transform:\n{head_joint.get_transform()}")
-                    return task.done
+                    return task.cont
+                
+                # Final position lock
+                self.head_control.set_p(45)
+                bundle.force_update()
+                char_node.update()
+                print("✅ Delayed Tilt Complete!")
+                print(f"Post-Tilt Joint Transform:\n{head_joint.get_transform()}")
+                return task.done
 
-                # 3. Add the task to the manager
-                self.taskMgr.add(tilt_head_task, "TiltHeadTask")
+            # 3. Add the task to the manager
+            self.taskMgr.add(tilt_head_task, "TiltHeadTask")
 
                 # 2. Apply movement to the NodePath
                 #print("Tilting head 45 degrees forward...")
@@ -220,11 +220,10 @@ class GrekoVisualTest(ShowBase):
 
                 # 3. THE MISSING FLAG: Force the Bundle to sync
                 # This pushes the NodePath's transform into the actual bone math
-                bundle = char_node.get_bundle(0)
-                bundle.force_update()
-
-                # 4. Final calculation of the hierarchy
-                char_node.update()
+            bundle = char_node.get_bundle(0)
+            bundle.force_update()
+            # 4. Final calculation of the hierarchy
+            char_node.update()
         
         
         
