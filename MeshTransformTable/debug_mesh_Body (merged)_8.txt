@@ -1,6 +1,6 @@
 Body (merged)_8
   12223 rows.
-  Array 0 (0x7f649ee72010, [ vertex(3f) normal(3f) texcoord(2f) tangent(4f) transform_index(4s) transform_weight(4f) ]):
+  Array 0 (0x7efd4664e010, [ vertex(3f) normal(3f) texcoord(2f) tangent(4f) transform_index(4s) transform_weight(4f) ]):
     row 0:
       vertex 0.0471564 0.923134 0.0598153
       normal -0.28466 -0.208842 0.935603

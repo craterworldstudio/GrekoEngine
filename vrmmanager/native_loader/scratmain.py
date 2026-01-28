@@ -1,7 +1,11 @@
 import time
 from glb_parser import parse_glb
 from gltf_accessors import (validate_gltf, read_accessor, )
+import simplepbr
 from panda3d.core import NodePath
+from panda3d.core import loadPrcFileData
+loadPrcFileData("", "hardware-animated-vertices #t")
+loadPrcFileData("", "basic-shaders-only #f")
 
 parsed = parse_glb("assets/kisayo.vrm")
 
@@ -77,7 +81,7 @@ def draw_skeleton_debug(character_np, joint_map, parent_map):
 
 import sys
 from direct.showbase.ShowBase import ShowBase
-from geometry_builder import build_panda_mesh
+from geometry_builder import build_panda_mesh, getIBMS
 from direct.actor.Actor import Actor
 
 from skin_builder import build_vrm_skeleton
@@ -86,6 +90,8 @@ class GrekoVisualTest(ShowBase):
     def __init__(self, parsed_glb):
         super().__init__()
         self.setFrameRateMeter(True)
+        self.pipeline = simplepbr.init()
+        self.render.set_shader_auto()
         # We build the skeleton FIRST. It creates the 'Character' node.
         # Most VRMs have one 'skin', so we use index 0.
         print("[TEST] Reconstructing Joint Hierarchy...")
@@ -111,6 +117,8 @@ class GrekoVisualTest(ShowBase):
         skin_joints_indices = parsed_glb.json["skins"][0]["joints"]
         ordered_joints = [joints_map[idx] for idx in skin_joints_indices]
 
+        ibms = getIBMS(parsed_glb, read_accessor)
+
         for m_idx, mesh_json in enumerate(parsed_glb.json.get("meshes", [])):
             mesh_name = mesh_json.get("name", f"Mesh_{m_idx}")
             for p_idx, primitive in enumerate(mesh_json["primitives"]):
@@ -118,12 +126,14 @@ class GrekoVisualTest(ShowBase):
                 print(f"  -> Building: {mesh_name} (Primitive {p_idx})")
                 
                 
+
                 geom_node = build_panda_mesh(
                     parsed_glb.json, 
                     parsed_glb.bin_blob, 
                     primitive, 
                     read_accessor,
                     joints_list=ordered_joints,
+                    ibms=ibms,
                     name=f"{mesh_name}_{p_idx}"
                 )
                 

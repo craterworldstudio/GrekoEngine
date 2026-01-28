@@ -7,7 +7,7 @@ from panda3d.core import (
 )
 
 
-def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, joints_list=None, name="Mesh"):
+def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, joints_list=None, ibms=None, name="Mesh"):
     # 1. SETUP GEOMVERTEXFORMAT (Corrected for Panda3D)
     joint_name = InternalName.get_transform_index()
     weight_name = InternalName.get_transform_weight()
@@ -32,7 +32,7 @@ def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, jo
     
     # Register and create the data container
     v_format = GeomVertexFormat.register_format(v_format)
-    v_data = GeomVertexData(name, v_format, Geom.UH_stream)
+    v_data = GeomVertexData(name, v_format, Geom.UH_static)
     #v_data.set_animation(aspec)
     
 
@@ -119,14 +119,22 @@ def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, jo
     #4. Build the Trnasform Table for skinning and mesh deformation
     if joints_list:
         ttable = TransformTable()
-        for joint in joints_list:
-            # JointPointer connects the table slot to the actual bone
-            joint_transform = JointVertexTransform(joint)
-            ttable.add_transform(joint_transform)
+        for i, joint in enumerate(joints_list):
+            # JointVertexTransform connects the table slot to the actual bone
+            jvt = JointVertexTransform(joint)
+            
+            # THE MAGIC FIX: Apply the Inverse Bind Matrix
+            # This 'zeros out' the bone's world position so the vertex moves 
+            # relative to the bone, not the center of the world.
+            if ibms and i < len(ibms):
+                # ibms[i] should be an LMatrix4f from your read_accessor
+                jvt.set_matrix(ibms[i])
+            
+            ttable.add_transform(jvt)
         
         # Register the table (makes it immutable/optimized)
         ttable = TransformTable.register_table(ttable)
-        # Apply the phone book to the vertex data
+        # Apply the 'phone book' to the vertex data
         v_data.set_transform_table(ttable)
 
     # 4. ASSEMBLE GEOMNODE
@@ -167,3 +175,19 @@ def build_panda_mesh(gltf_json, bin_blob, primitive_data, read_accessor_func, jo
         f.write(formatted_data)
         f.write(table_info)
     return node
+
+
+def getIBMS(parsed_glb, read_accessor) -> list:
+    skin = parsed_glb.json["skins"][0]
+    ibm_accessor_idx = skin.get("inverseBindMatrices")
+
+    ibms = []
+    if ibm_accessor_idx is not None:
+        print(f"[TEST] Extracting Inverse Bind Matrices from accessor {ibm_accessor_idx}...")
+        # This will return a list of LMatrix4f objects
+        ibms = read_accessor(parsed_glb.json, parsed_glb.bin_blob, ibm_accessor_idx)
+        print(f"  -> Successfully loaded {len(ibms)} IBMs")
+    else:
+        print("⚠️ WARNING: No Inverse Bind Matrices found in skin!")
+
+    return ibms
