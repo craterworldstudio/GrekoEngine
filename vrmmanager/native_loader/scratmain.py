@@ -166,10 +166,11 @@ class GrekoVisualTest(ShowBase):
         print("\n🚀 Phase 1.,5,6: Skeleton bound and hierarchy validated!")
 
         # Camera Setup
-        self.cam.set_pos(0, -4, 1.0)
+        self.cam.set_pos(0, -4, 0.0)
         self.cam.look_at(0, 0, 1.0)
         self.render.set_two_sided(True)
-
+        self.character_np.set_scale(0.7)
+        
         head_joint = None
         for joint in joints_map.values():
             if "Head" in joint.get_name():
