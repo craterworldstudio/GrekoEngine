@@ -36,7 +36,6 @@ A high-performance 3D VRM visualizer built with a Python "Brain" and a C++ OpenG
 ## 📂 Native README (`/native/README.md`)
 This is for the technical details of the C++ rendering core.
 
-```markdown
 # 🧠 Greko Native Muscle
 
 This directory contains the low-level rendering logic and the Python-C++ bridge.
