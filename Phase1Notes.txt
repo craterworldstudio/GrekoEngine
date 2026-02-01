@@ -1,4 +1,0 @@
-- .vrm now loads through native_loader.glb_parser.py
-    need to remove vrm_fixer.py
-
-- fix the loader stuff in vrm_handler to change the assimp loader to our customloader!

@@ -7,3 +7,6 @@ VidLogs/
 current_session.json
 lighting.json
 MeshTransformTable/
+.vscode
+DEPRECIATEDrun.sh
+maybefiles/

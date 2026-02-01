@@ -15,38 +15,7 @@ class FaceMesh:
         self.geom_node = geom_node
         self.base_positions = base_positions  # list of Vec3
         self.morphs = {}  # name -> MorphTarget
-
-class FaceMorphController:
-    def __init__(self, face_mesh: FaceMesh):
-        self.face = face_mesh
-        self.dirty = False
-
-    def set_morph(self, name, value: float):
-        morph = self.face.morphs.get(name)
-        if morph:
-            if morph.weight != value:
-                morph.weight = value
-                self.dirty = True
-        else:
-            print(f"⚠️ Morph '{name}' not found in face mesh")
-
-    def update(self):
-        if self.dirty:
-            self.apply_morphs()
-            self.dirty = False
-
-    def apply_morphs(self):
-        geom = self.face.geom_node.modify_geom(0)
-        vdata = geom.modify_vertex_data()
-        writer = GeomVertexWriter(vdata, "vertex")
-
-        for i, base in enumerate(self.face.base_positions):
-            pos = Vec3(base)
-            for morph in self.face.morphs.values():
-                if morph.weight != 0.0:
-                    pos += morph.deltas[i] * morph.weight
-            writer.set_data3f(pos)
-
+        
 # ---- GLB Parsing Utilities ----
 def load_glb_json(glb_path):
     """Extract JSON chunk from a GLB file"""
