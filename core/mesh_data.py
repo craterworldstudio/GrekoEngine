@@ -10,6 +10,13 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
     
     # 1. Get Geometry (from old geometry_builder logic)
     pos = np.array(read_accessor(gltf_json, bin_blob, attrs["POSITION"]), dtype=np.float32)
+    if "NORMAL" in attrs:
+        normals = np.array(read_accessor(gltf_json, bin_blob, attrs["NORMAL"]), dtype=np.float32)
+    else:
+        # Generate flat normals if missing (shouldn't happen with VRM)
+        normals = np.zeros_like(pos)
+        normals[:, 1] = 1.0  # Point up as default
+
     uv = np.array(read_accessor(gltf_json, bin_blob, attrs["TEXCOORD_0"]), dtype=np.float32)
     
     # 2. Get Skinning (from old skin_builder logic)
@@ -22,6 +29,7 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
     
     return {
         "vertices": pos,
+        "normals": normals,
         "uvs": uv,
         "joints": joints,
         "weights": weights,

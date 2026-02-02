@@ -9,21 +9,30 @@ namespace py = pybind11;
 // This function takes NumPy arrays from Python and sends them to the GPU.
 void upload_mesh_to_gpu(
     py::array_t<float> vertices,
+    py::array_t<float> normals,
     py::array_t<float> uvs,
     py::array_t<uint32_t> joints,
     py::array_t<float> weights,
     py::array_t<uint32_t> indices
 ) {
     auto v_ptr = vertices.data();
+    auto n_ptr = normals.data();
     auto uv_ptr = uvs.data();
     auto j_ptr = joints.data();
     auto w_ptr = weights.data();
     auto i_ptr = indices.data();
 
-    setup_opengl_buffers(v_ptr, vertices.size(), uv_ptr, uvs.size(), 
-                         j_ptr, joints.size(), w_ptr, weights.size(), 
-                         i_ptr, indices.size());
+    setup_opengl_buffers(
+        v_ptr, vertices.size(), 
+        n_ptr, normals.size(),
+        uv_ptr, uvs.size(), 
+        j_ptr, joints.size(), 
+        w_ptr, weights.size(), 
+        i_ptr, indices.size()
+    );
 }
+
+
 
 // FLAG: The Module Definition
 // If it's not in this block, Python can't see it!

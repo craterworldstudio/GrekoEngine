@@ -8,7 +8,7 @@
 // FLAG: Camera State
 // We put this in a struct to keep it organized
 struct Camera {
-    glm::vec3 pos    = glm::vec3(0.0f, 1.0f, 4.0f); // Start 4 meters back
+    glm::vec3 pos    = glm::vec3(0.0f, 1.0f, 1.0f); // Start 4 meters back
     glm::vec3 target = glm::vec3(0.0f, 1.0f, 0.0f); // Look at the chest area
     glm::vec3 up     = glm::vec3(0.0f, 1.0f, 0.0f);
     

@@ -74,8 +74,13 @@ void process_input(float dt) {
 
     // FLAG: Escape to Toggle Mouse
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        mouseLocked = false;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        if (mouseLocked == true) { 
+            mouseLocked = false;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); 
+        } else if (mouseLocked == false) {
+            mouseLocked = true;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        }
     }
 
     float speed = 2.5f * dt;
@@ -197,10 +202,11 @@ void terminate() {
 
 int current_index_count = 0;
 // FLAG: Global GPU Handles
-GLuint vao, vbo_pos, vbo_uv, vbo_joints, vbo_weights, ebo;
+GLuint vao, vbo_pos, vbo_norm, vbo_uv, vbo_joints, vbo_weights, ebo;
 
 void setup_opengl_buffers(
     const float* vertices, size_t v_size,
+    const float* normals, size_t n_size,
     const float* uvs, size_t uv_size,
     const uint32_t* joints, size_t j_size,
     const float* weights, size_t w_size,
@@ -210,42 +216,42 @@ void setup_opengl_buffers(
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    // 2. Positions (VEC3)
+    // Location 0: Positions
     glGenBuffers(1, &vbo_pos);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_pos);
     glBufferData(GL_ARRAY_BUFFER, v_size * sizeof(float), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(0);
 
-    // 3. NORMALS (VEC3) - Location 1 *** CRITICAL FIX ***
+    // Location 1: Normals *** CRITICAL FIX ***
     glGenBuffers(1, &vbo_norm);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_norm);
     glBufferData(GL_ARRAY_BUFFER, n_size * sizeof(float), normals, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(1);
 
-    // 4. UVs (VEC2)
+    // Location 2: UVs
     glGenBuffers(1, &vbo_uv);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
     glBufferData(GL_ARRAY_BUFFER, uv_size * sizeof(float), uvs, GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(2);
 
-    // 5. Joints (VEC4 - UNSIGNED INT)
+    // Location 3: Joints
     glGenBuffers(1, &vbo_joints);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_joints);
     glBufferData(GL_ARRAY_BUFFER, j_size * sizeof(uint32_t), joints, GL_STATIC_DRAW);
-    glVertexAttribIPointer(3, 4, GL_UNSIGNED_INT, 4 * sizeof(uint32_t), (void*)0);
+    glVertexAttribIPointer(3, 4, GL_UNSIGNED_INT, 0, 0);
     glEnableVertexAttribArray(3);
 
-    // 6. Weights (VEC4)
+    // Location 4: Weights
     glGenBuffers(1, &vbo_weights);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_weights);
     glBufferData(GL_ARRAY_BUFFER, w_size * sizeof(float), weights, GL_STATIC_DRAW);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(4);
 
-    // 7. Indices
+    // Indices
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, i_size * sizeof(uint32_t), indices, GL_STATIC_DRAW);
