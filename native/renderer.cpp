@@ -217,33 +217,45 @@ void setup_opengl_buffers(
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // 3. UVs (VEC2)
+    // 3. NORMALS (VEC3) - Location 1 *** CRITICAL FIX ***
+    glGenBuffers(1, &vbo_norm);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_norm);
+    glBufferData(GL_ARRAY_BUFFER, n_size * sizeof(float), normals, GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+
+    // 4. UVs (VEC2)
     glGenBuffers(1, &vbo_uv);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
     glBufferData(GL_ARRAY_BUFFER, uv_size * sizeof(float), uvs, GL_STATIC_DRAW);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(2);
 
-    // 4. Joints (VEC4 - UNSIGNED INT)
+    // 5. Joints (VEC4 - UNSIGNED INT)
     glGenBuffers(1, &vbo_joints);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_joints);
     glBufferData(GL_ARRAY_BUFFER, j_size * sizeof(uint32_t), joints, GL_STATIC_DRAW);
     glVertexAttribIPointer(3, 4, GL_UNSIGNED_INT, 4 * sizeof(uint32_t), (void*)0);
     glEnableVertexAttribArray(3);
 
-    // 5. Weights (VEC4)
+    // 6. Weights (VEC4)
     glGenBuffers(1, &vbo_weights);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_weights);
     glBufferData(GL_ARRAY_BUFFER, w_size * sizeof(float), weights, GL_STATIC_DRAW);
     glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(4);
 
-    // 6. Indices
+    // 7. Indices
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, i_size * sizeof(uint32_t), indices, GL_STATIC_DRAW);
 
     current_index_count = i_size;
+
+    std::cout << "📊 GPU Upload Complete:" << std::endl;
+    std::cout << "   Vertices: " << (v_size / 3) << std::endl;
+    std::cout << "   Normals: " << (n_size / 3) << std::endl;
+    std::cout << "   Indices: " << i_size << std::endl;
 }
 
 // FLAG: The Actual Drawing Logic
