@@ -4,6 +4,7 @@
 #include "renderer.cpp" // Links the actual OpenGL logic
 
 namespace py = pybind11;
+GLuint g_texture = 0;
 
 // FLAG: The Uploader
 // This function takes NumPy arrays from Python and sends them to the GPU.
@@ -62,5 +63,12 @@ PYBIND11_MODULE(greko_native, m) {
         float newZ = glm::sin(rad) * (main_camera.target.x - main_camera.pos.x) + glm::cos(rad) * (main_camera.target.z - main_camera.pos.z);
         main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ);
     }, "Rotate camera around Y axis");
+    m.def("upload_texture", [](py::bytes data) {
+        std::string buffer = data;
+        g_texture = load_texture_from_memory(
+                reinterpret_cast<const unsigned char*>(buffer.data()),
+                buffer.size()
+                    );
+            }, "Upload texture meshes for rendering");
     
 }
