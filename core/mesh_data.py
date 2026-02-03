@@ -26,6 +26,8 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
     
     # 3. Get Indices
     indices = np.array(read_accessor(gltf_json, bin_blob, primitive_data["indices"]), dtype=np.uint32)
+
+    texture_bytes = extract_base_color_texture_bytes( gltf_json, bin_blob, primitive )
     
     return {
         "vertices": pos,
@@ -34,5 +36,39 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
         "joints": joints,
         "weights": weights,
         "indices": indices,
-        "index_count": len(indices)
+        "index_count": len(indices),
+        "texture": texture_bytes
     }
+
+def extract_base_color_texture_bytes(gltf_json, bin_blob, primitive):
+    mat_idx = primitive.get("material")
+    if mat_idx is None:
+        return None
+
+    material = gltf_json["materials"][mat_idx]
+    pbr = material.get("pbrMetallicRoughness")
+    if not pbr:
+        return None
+
+    tex_info = pbr.get("baseColorTexture")
+    if not tex_info:
+        return None
+
+    tex_idx = tex_info["index"]
+    image_idx = gltf_json["textures"][tex_idx]["source"]
+    image = gltf_json["images"][image_idx]
+
+    # Case 1: embedded image (VRM does this)
+    if "bufferView" in image:
+        bv = gltf_json["bufferViews"][image["bufferView"]]
+        start = bv["byteOffset"]
+        end = start + bv["byteLength"]
+        return bin_blob[start:end]
+
+    # Case 2: external file (rare for VRM)
+    if "uri" in image:
+        with open(image["uri"], "rb") as f:
+            return f.read()
+
+    return None
+    
