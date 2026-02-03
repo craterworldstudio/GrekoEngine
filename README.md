@@ -65,7 +65,9 @@ The engine is compiled with the following flags in `run.sh`:
 ## ⚠️ Known Implementation Details
 * **Depth Testing:** Enabled via `GL_DEPTH_TEST` to prevent 3D "squashing."
 * **Winding Order:** Currently set to `GL_LESS` for standard VRM depth sorting.
-* **VSync Details:** Toggle VSync in ```renderer.cpp``` for benchmark testing.
+* **VSync Details:** Toggle VSync with ```cpp
+   glfwSwapInterval();
+``` in ```renderer.cpp``` for benchmark testing. 0/1 = off/on
 
 
 ## 📋 Engine Documentation & History
