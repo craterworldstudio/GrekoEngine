@@ -7,6 +7,9 @@
 #include <string>
 #include "camera.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 // Define the global instance
 Camera main_camera;
 GLuint shaderProgram;
@@ -285,5 +288,47 @@ void draw_mesh() {
     glBindVertexArray(vao);
     glDrawElements(GL_TRIANGLES, current_index_count, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+}
+
+GLuint load_texture_from_memory(const unsigned char* data, int size) {
+    int width, height, channels;
+    stbi_set_flip_vertically_on_load(true);
+
+    unsigned char* image = stbi_load_from_memory(
+        data, size,
+        &width, &height, &channels,
+        STBI_rgb_alpha
+    );
+
+    if (!image) {
+        std::cerr << "❌ Failed to decode texture\n";
+        return 0;
+    }
+
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        width,
+        height,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        image
+    );
+
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    stbi_image_free(image);
+    return tex;
 }
 
