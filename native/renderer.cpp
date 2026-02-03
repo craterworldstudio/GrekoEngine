@@ -155,6 +155,7 @@ int init_renderer(int width, int height) {
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);  // Enabled VSync, change to 0 to turn it off.
     glewInit();
 
     glEnable(GL_DEPTH_TEST);
