@@ -19,7 +19,7 @@ A high-performance 3D VRM visualizer built with a Python "Brain" and a C++ OpenG
 1. **Clone the repo:**
    ```bash
     git clone <your-link>
-    cd greko-engine
+    cd GrekoEngine
     chmod +x run.sh
     ./run.sh
    ```
@@ -33,7 +33,7 @@ A high-performance 3D VRM visualizer built with a Python "Brain" and a C++ OpenG
 
 ---
 
-## 📂 Native README (`/native/README.md`)
+## 📂 Native README (`./native/README.md`)
 This is for the technical details of the C++ rendering core.
 
 # 🧠 Greko Native Muscle
@@ -65,6 +65,7 @@ The engine is compiled with the following flags in `run.sh`:
 ## ⚠️ Known Implementation Details
 * **Depth Testing:** Enabled via `GL_DEPTH_TEST` to prevent 3D "squashing."
 * **Winding Order:** Currently set to `GL_LESS` for standard VRM depth sorting.
+* **VSync Details:** Toggle VSync in ```renderer.cpp``` for benchmark testing.
 
 
 ## 📋 Engine Documentation & History
