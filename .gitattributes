@@ -1,0 +1,6 @@
+native/glad/glad.c linguist-vendored
+native/stb_image.h linguist-vendored
+
+# Force GLSL and Shell to show up even if they are small percentages
+*.glsl linguist-detectable=true
+*.sh linguist-detectable=true
