@@ -1,10 +1,13 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <vector>
-#include "renderer.cpp" // Links the actual OpenGL logic
+#include "renderer.hpp" // Links the actual OpenGL logic
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 
 namespace py = pybind11;
-GLuint g_texture = 0;
+
 
 // FLAG: The Uploader
 // This function takes NumPy arrays from Python and sends them to the GPU.
@@ -54,21 +57,22 @@ PYBIND11_MODULE(greko_native, m) {
         main_camera.pos += glm::vec3(x, y, z);
         main_camera.target += glm::vec3(x, y, z); 
     }, "Move camera by x, y, z offset");
-
     // Rotates the camera target (Q and E rotation)
     m.def("rotate_camera", [](float angle_deg) {
         float rad = glm::radians(angle_deg);
         // Ensure you have #include <cmath> or use glm::cos/sin
         float newX = glm::cos(rad) * (main_camera.target.x - main_camera.pos.x) - glm::sin(rad) * (main_camera.target.z - main_camera.pos.z);
         float newZ = glm::sin(rad) * (main_camera.target.x - main_camera.pos.x) + glm::cos(rad) * (main_camera.target.z - main_camera.pos.z);
-        main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ);
+        main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ); 
     }, "Rotate camera around Y axis");
+    //Uplads texture
     m.def("upload_texture", [](py::bytes data) {
-        std::string buffer = data;
-        g_texture = load_texture_from_memory(
-                reinterpret_cast<const unsigned char*>(buffer.data()),
-                buffer.size()
-                    );
-            }, "Upload texture meshes for rendering");
+        std::string buf = data;
+        return upload_texture_bytes(
+            reinterpret_cast<const unsigned char*>(buf.data()),
+            static_cast<int>(buf.size())
+        );
+    }, "Upload texture bytes to GPU" );
+
     
 }

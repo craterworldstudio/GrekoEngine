@@ -1,4 +1,6 @@
-#include <GL/glew.h>
+//#include <GL/glew.h>
+
+#include "glad/glad.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
 
@@ -6,15 +8,17 @@
 #include <sstream>
 #include <string>
 #include "camera.hpp"
+#include "renderer.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "texture_loader.hpp"
 
 // Define the global instance
 Camera main_camera;
 GLuint shaderProgram;
 // FLAG: The GrekoEngine Window
 GLFWwindow* window;
+GLuint g_texture = 0;
+
 
 float lastX = 640, lastY = 360;
 float yaw = -90.0f, pitch = 0.0f;
@@ -127,8 +131,8 @@ GLuint compile_shader(const std::string& path, GLenum type) {
 }
 
 void setup_debug_shader() {
-    GLuint vs = compile_shader("shaders/debug.vert", GL_VERTEX_SHADER);
-    GLuint fs = compile_shader("shaders/debug.frag", GL_FRAGMENT_SHADER);
+    GLuint vs = compile_shader("shaders/Textest.vert", GL_VERTEX_SHADER);
+    GLuint fs = compile_shader("shaders/Textest.frag", GL_FRAGMENT_SHADER);
 
     shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vs);
@@ -150,6 +154,11 @@ void setup_debug_shader() {
 int init_renderer(int width, int height) {
     if (!glfwInit()) return -1;
 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+
     window = glfwCreateWindow(width, height, "Greko Custom Renderer", NULL, NULL);
     if (!window) {
         glfwTerminate();
@@ -158,8 +167,13 @@ int init_renderer(int width, int height) {
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwMakeContextCurrent(window);
+
+    if (!gladLoadGL( (GLADloadfunc)glfwGetProcAddress)) {
+        std::cerr << "❌ Failed to initialize GLAD\n";
+        return -1;
+    }
+
     glfwSwapInterval(1);  // Enabled VSync, change to 0 to turn it off.
-    glewInit();
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -204,7 +218,7 @@ void terminate() {
     glfwTerminate();
 }
 
-int current_index_count = 0;
+unsigned int current_index_count = 0;
 // FLAG: Global GPU Handles
 GLuint vao, vbo_pos, vbo_norm, vbo_uv, vbo_joints, vbo_weights, ebo;
 
@@ -268,11 +282,23 @@ void setup_opengl_buffers(
     std::cout << "   Indices: " << i_size << std::endl;
 }
 
+GLuint upload_texture_bytes(const unsigned char* data, int size) {
+    g_texture = load_texture_from_memory(data, size);
+    return g_texture;
+}
+
 // FLAG: The Actual Drawing Logic
 void draw_mesh() {
     if (vao == 0 || current_index_count == 0) return;
 
     glUseProgram(shaderProgram);
+
+    if (g_texture != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, g_texture);
+        glUniform1i(glGetUniformLocation(shaderProgram, "uTexture"), 0);
+    }
+
 
     // FLAG: Get Matrices from Camera
     glm::mat4 model = glm::mat4(1.0f); // Identity (no movement)
@@ -288,47 +314,6 @@ void draw_mesh() {
     glBindVertexArray(vao);
     glDrawElements(GL_TRIANGLES, current_index_count, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+
+
 }
-
-GLuint load_texture_from_memory(const unsigned char* data, int size) {
-    int width, height, channels;
-    stbi_set_flip_vertically_on_load(true);
-
-    unsigned char* image = stbi_load_from_memory(
-        data, size,
-        &width, &height, &channels,
-        STBI_rgb_alpha
-    );
-
-    if (!image) {
-        std::cerr << "❌ Failed to decode texture\n";
-        return 0;
-    }
-
-    GLuint tex;
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA,
-        width,
-        height,
-        0,
-        GL_RGBA,
-        GL_UNSIGNED_BYTE,
-        image
-    );
-
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    stbi_image_free(image);
-    return tex;
-}
-

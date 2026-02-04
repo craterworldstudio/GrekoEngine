@@ -27,7 +27,7 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
     # 3. Get Indices
     indices = np.array(read_accessor(gltf_json, bin_blob, primitive_data["indices"]), dtype=np.uint32)
 
-    texture_bytes = extract_base_color_texture_bytes( gltf_json, bin_blob, primitive )
+    texture_bytes = extract_base_color_texture_bytes( gltf_json, bin_blob, primitive_data)
     
     return {
         "vertices": pos,

@@ -72,7 +72,7 @@ def run_engine():
         all_weights.append(w)
     
         all_indices.append(idx + index_offset)
-        index_offset += len(v)
+        index_offset += v.shape[0]
 
     vertices = np.vstack(all_vertices)
     normals  = np.vstack(all_normals)
@@ -90,11 +90,20 @@ def run_engine():
         weights,
         indices
     )
-    (f"🎨 Uploaded mesh with {len(indices)} indices")
+    print(f"🎨 Uploaded mesh with {len(indices)} indices")
+
+    # 4.5 FLAG: Upload texture (single-texture pipeline for now)
+    for mesh in all_meshes:
+        tex = mesh.get("texture")
+        if tex is not None:
+            gn.upload_texture(tex.tobytes())
+            print("🎨 Texture uploaded")
+            break
+        
 
 
     print(f"🚀 Kisayo Uploaded! Index Count: {len(indices)}") # type: ignore        
-    last_time = time.time()
+    #last_time = time.time()
     running = True
     while running:
         if gn.should_close():
