@@ -18,7 +18,7 @@ GLuint shaderProgram;
 // FLAG: The GrekoEngine Window
 GLFWwindow* window;
 GLuint g_texture = 0;
-
+glm::vec4 g_base_color = glm::vec4(1.0f);
 
 float lastX = 640, lastY = 360;
 float yaw = -90.0f, pitch = 0.0f;
@@ -91,15 +91,22 @@ void process_input(float dt) {
     }
 
     float speed = 2.5f * dt;
+    glm::vec3 front = glm::normalize(main_camera.target - main_camera.pos);
+    front.y = 0.0f;
+    front = glm::normalize(front);
+    
+    glm::vec3 right = glm::normalize(glm::cross(front, main_camera.up));
+    
+    
     // FLAG: GLFW Key Polling
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        main_camera.pos += speed * glm::normalize(main_camera.target - main_camera.pos);
+        main_camera.pos += speed * front; //glm::normalize(main_camera.target - main_camera.pos);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        main_camera.pos -= speed * glm::normalize(main_camera.target - main_camera.pos);
+        main_camera.pos -= speed * front; //glm::normalize(main_camera.target - main_camera.pos);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        main_camera.pos -= glm::normalize(glm::cross(main_camera.target - main_camera.pos, main_camera.up)) * speed;
+        main_camera.pos -= speed * right; //glm::normalize(glm::cross(main_camera.target - main_camera.pos, main_camera.up)) * speed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        main_camera.pos += glm::normalize(glm::cross(main_camera.target - main_camera.pos, main_camera.up)) * speed;
+        main_camera.pos += speed * right; //glm::normalize(glm::cross(main_camera.target - main_camera.pos, main_camera.up)) * speed;
 }
 
 // FLAG: Shader Loader
@@ -173,7 +180,7 @@ int init_renderer(int width, int height) {
         return -1;
     }
 
-    glfwSwapInterval(1);  // Enabled VSync, change to 0 to turn it off.
+    glfwSwapInterval(0);  // Enabled VSync, change to 0 to turn it off.
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -298,6 +305,15 @@ void draw_mesh() {
         glBindTexture(GL_TEXTURE_2D, g_texture);
         glUniform1i(glGetUniformLocation(shaderProgram, "uTexture"), 0);
     }
+
+    // Base color factor (TEMP: hardcoded white)
+    glUniform4f(
+        glGetUniformLocation(shaderProgram, "uBaseColorFactor"),
+        g_base_color.r,
+        g_base_color.g,
+        g_base_color.b,
+        g_base_color.a
+    );
 
 
     // FLAG: Get Matrices from Camera

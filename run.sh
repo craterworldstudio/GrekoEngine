@@ -21,7 +21,7 @@ clang++ -O3 -shared -std=c++17 -fPIC \
     native/bridge.cpp \
     native/renderer.cpp \
     native/texture_loader.cpp \
-    native/glad/glad.c \
+    -x c++ native/glad/glad.c \
     -I native \
     -o core/greko_native$PY_SUFFIX \
     -lGL -lglfw -ldl

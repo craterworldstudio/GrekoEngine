@@ -57,15 +57,15 @@ PYBIND11_MODULE(greko_native, m) {
         main_camera.pos += glm::vec3(x, y, z);
         main_camera.target += glm::vec3(x, y, z); 
     }, "Move camera by x, y, z offset");
-    // Rotates the camera target (Q and E rotation)
-    m.def("rotate_camera", [](float angle_deg) {
-        float rad = glm::radians(angle_deg);
-        // Ensure you have #include <cmath> or use glm::cos/sin
-        float newX = glm::cos(rad) * (main_camera.target.x - main_camera.pos.x) - glm::sin(rad) * (main_camera.target.z - main_camera.pos.z);
-        float newZ = glm::sin(rad) * (main_camera.target.x - main_camera.pos.x) + glm::cos(rad) * (main_camera.target.z - main_camera.pos.z);
-        main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ); 
-    }, "Rotate camera around Y axis");
-    //Uplads texture
+    //Rotates the camera target (Q and E rotation)
+     m.def("rotate_camera", [](float angle_deg) {
+         float rad = glm::radians(angle_deg);
+         // Ensure you have #include <cmath> or use glm::cos/sin
+         float newX = glm::cos(rad) * (main_camera.target.x - main_camera.pos.x) - glm::sin(rad) * (main_camera.target.z - main_camera.pos.z);
+         float newZ = glm::sin(rad) * (main_camera.target.x - main_camera.pos.x) + glm::cos(rad) * (main_camera.target.z - main_camera.pos.z);
+         main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ); 
+     }, "Rotate camera around Y axis");
+    //Uploads texture
     m.def("upload_texture", [](py::bytes data) {
         std::string buf = data;
         return upload_texture_bytes(
