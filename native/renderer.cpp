@@ -3,7 +3,7 @@
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
-
+#include <vector>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -19,6 +19,7 @@ GLuint shaderProgram;
 GLFWwindow* window;
 GLuint g_texture = 0;
 glm::vec4 g_base_color = glm::vec4(1.0f);
+GLuint current_texture = 0;
 
 float lastX = 640, lastY = 360;
 float yaw = -90.0f, pitch = 0.0f;
@@ -80,7 +81,7 @@ void process_input(float dt) {
     if (!window) return;
 
     // FLAG: Escape to Toggle Mouse
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
         if (mouseLocked == true) { 
             mouseLocked = false;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); 
@@ -180,11 +181,13 @@ int init_renderer(int width, int height) {
         return -1;
     }
 
-    glfwSwapInterval(0);  // Enabled VSync, change to 0 to turn it off.
+    glfwSwapInterval(1);  // Enabled VSync, change to 0 to turn it off.
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
-    glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //glEnable(GL_CULL_FACE);
     
     // FLAG: Don't forget to call this!
     setup_debug_shader();
@@ -225,111 +228,104 @@ void terminate() {
     glfwTerminate();
 }
 
-unsigned int current_index_count = 0;
-// FLAG: Global GPU Handles
-GLuint vao, vbo_pos, vbo_norm, vbo_uv, vbo_joints, vbo_weights, ebo;
+struct GPUMesh {
+    GLuint vao;
+    GLuint vbo_pos, vbo_norm, vbo_uv, vbo_joints, vbo_weights, ebo;
+    int index_count;
+    GLuint texture_id;
+};
 
-void setup_opengl_buffers(
+std::vector<GPUMesh> scene_meshes;
+
+void add_mesh_to_scene(
     const float* vertices, size_t v_size,
     const float* normals, size_t n_size,
     const float* uvs, size_t uv_size,
     const uint32_t* joints, size_t j_size,
     const float* weights, size_t w_size,
-    const uint32_t* indices, size_t i_size
+    const uint32_t* indices, size_t i_size,
+    int tex_id
 ) {
-    // 1. Create VAO
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
+    GPUMesh mesh;
+    mesh.index_count = i_size;
+    mesh.texture_id = tex_id;
 
-    // Location 0: Positions
-    glGenBuffers(1, &vbo_pos);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_pos);
+    glGenVertexArrays(1, &mesh.vao);
+    glBindVertexArray(mesh.vao);
+
+    // Positions
+    glGenBuffers(1, &mesh.vbo_pos);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_pos);
     glBufferData(GL_ARRAY_BUFFER, v_size * sizeof(float), vertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(0);
 
-    // Location 1: Normals *** CRITICAL FIX ***
-    glGenBuffers(1, &vbo_norm);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_norm);
+    // Normals
+    glGenBuffers(1, &mesh.vbo_norm);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_norm);
     glBufferData(GL_ARRAY_BUFFER, n_size * sizeof(float), normals, GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(1);
 
-    // Location 2: UVs
-    glGenBuffers(1, &vbo_uv);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
+    // UVs
+    glGenBuffers(1, &mesh.vbo_uv);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_uv);
     glBufferData(GL_ARRAY_BUFFER, uv_size * sizeof(float), uvs, GL_STATIC_DRAW);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(2);
 
-    // Location 3: Joints
-    glGenBuffers(1, &vbo_joints);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_joints);
-    glBufferData(GL_ARRAY_BUFFER, j_size * sizeof(uint32_t), joints, GL_STATIC_DRAW);
-    glVertexAttribIPointer(3, 4, GL_UNSIGNED_INT, 0, 0);
-    glEnableVertexAttribArray(3);
-
-    // Location 4: Weights
-    glGenBuffers(1, &vbo_weights);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_weights);
-    glBufferData(GL_ARRAY_BUFFER, w_size * sizeof(float), weights, GL_STATIC_DRAW);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(4);
-
     // Indices
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glGenBuffers(1, &mesh.ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, i_size * sizeof(uint32_t), indices, GL_STATIC_DRAW);
 
-    current_index_count = i_size;
+    scene_meshes.push_back(mesh);
+    //return scene_meshes.size() - 1;
+}
 
-    std::cout << "📊 GPU Upload Complete:" << std::endl;
-    std::cout << "   Vertices: " << (v_size / 3) << std::endl;
-    std::cout << "   Normals: " << (n_size / 3) << std::endl;
-    std::cout << "   Indices: " << i_size << std::endl;
+// One call from Python draws EVERYTHING stored in the vector.
+void draw_scene() {
+    glUseProgram(shaderProgram);
+
+    glm::mat4 view = main_camera.get_view();
+    glm::mat4 proj = main_camera.get_projection();
+    glm::mat4 model = glm::mat4(1.0f);
+
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+    //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
+    //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &proj[0][0]);
+    //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
+
+    for (const auto& mesh : scene_meshes) {
+        // FLAG: The Critical Texture Bind
+        // We use mesh.texture_id (which Python sent) instead of a global variable.
+        if (mesh.texture_id != 0) {
+            glActiveTexture(GL_TEXTURE0); 
+            glBindTexture(GL_TEXTURE_2D, mesh.texture_id);
+            
+            // Tell the shader: "Use Texture Unit 0"
+            GLint texLoc = glGetUniformLocation(shaderProgram, "uMainTex");
+            glUniform1i(texLoc, 0);
+        }
+
+        // FLAG: Base Color Safety
+        // If it's black, Kisayo will be a shadow. Let's force it to White (1.0) for now.
+        GLint colorLoc = glGetUniformLocation(shaderProgram, "uBaseColorFactor");
+        glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+
+        glBindVertexArray(mesh.vao);
+        glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, 0);
+    }
 }
 
 GLuint upload_texture_bytes(const unsigned char* data, int size) {
     g_texture = load_texture_from_memory(data, size);
     return g_texture;
 }
-
-// FLAG: The Actual Drawing Logic
-void draw_mesh() {
-    if (vao == 0 || current_index_count == 0) return;
-
-    glUseProgram(shaderProgram);
-
-    if (g_texture != 0) {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, g_texture);
-        glUniform1i(glGetUniformLocation(shaderProgram, "uTexture"), 0);
-    }
-
-    // Base color factor (TEMP: hardcoded white)
-    glUniform4f(
-        glGetUniformLocation(shaderProgram, "uBaseColorFactor"),
-        g_base_color.r,
-        g_base_color.g,
-        g_base_color.b,
-        g_base_color.a
-    );
-
-
-    // FLAG: Get Matrices from Camera
-    glm::mat4 model = glm::mat4(1.0f); // Identity (no movement)
-    glm::mat4 view = main_camera.get_view();
-    glm::mat4 proj = main_camera.get_projection();
-
-    // FLAG: Send to Shader
-    // We get the "address" of the variables in the GLSL code
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
-
-    glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, current_index_count, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-
-
+// Store the uploaded texture ID
+void set_current_texture(GLuint tex_id) {
+    current_texture = tex_id;
 }

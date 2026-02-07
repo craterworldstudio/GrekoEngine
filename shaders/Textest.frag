@@ -8,10 +8,19 @@ uniform vec4 uBaseColorFactor;
 
 void main()
 {
-    vec4 tex = texture(uMainTex, vUV);
+    vec4 texColor = texture(uMainTex, vUV);
 
-    // VRM expects alpha respected
-    vec4 color = tex * uBaseColorFactor;
-    // Safety clamp (optional but fine)
-    FragColor = clamp(color, 0.0, 1.0);
+    // FLAG: Alpha Testing
+    // This removes the "square" around eyelashes and the "fog" in the eyes.
+    if (texColor.a < 0.05) {
+        discard; 
+    }
+
+    // FLAG: Color Mixing
+    // VRM models use uBaseColorFactor to tint the mesh (like making skin warmer).
+    // If you only use 'texColor', you might lose some of the artist's intended look.
+    vec4 color = texColor * uBaseColorFactor;
+
+    // Output the final color
+    FragColor = color;
 }

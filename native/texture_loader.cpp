@@ -1,6 +1,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
+#include "glad/glad.h"
 #include "texture_loader.hpp"
 #include <iostream>
 

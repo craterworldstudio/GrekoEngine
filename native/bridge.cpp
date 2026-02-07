@@ -1,23 +1,22 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <vector>
-#include "renderer.hpp" // Links the actual OpenGL logic
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
+#include <string>
+#include "renderer.hpp"
 
 namespace py = pybind11;
 
+// Forward declarations
+extern void set_current_texture(GLuint tex_id);
 
-// FLAG: The Uploader
-// This function takes NumPy arrays from Python and sends them to the GPU.
 void upload_mesh_to_gpu(
     py::array_t<float> vertices,
     py::array_t<float> normals,
     py::array_t<float> uvs,
     py::array_t<uint32_t> joints,
     py::array_t<float> weights,
-    py::array_t<uint32_t> indices
+    py::array_t<uint32_t> indices,
+    int tex_id
 ) {
     auto v_ptr = vertices.data();
     auto n_ptr = normals.data();
@@ -26,53 +25,64 @@ void upload_mesh_to_gpu(
     auto w_ptr = weights.data();
     auto i_ptr = indices.data();
 
-    setup_opengl_buffers(
+    add_mesh_to_scene(
         v_ptr, vertices.size(), 
         n_ptr, normals.size(),
         uv_ptr, uvs.size(), 
         j_ptr, joints.size(), 
         w_ptr, weights.size(), 
-        i_ptr, indices.size()
+        i_ptr, indices.size(),
+        tex_id
     );
 }
 
-
-
-// FLAG: The Module Definition
-// If it's not in this block, Python can't see it!
 PYBIND11_MODULE(greko_native, m) {
     m.doc() = "Greko Engine Native Renderer Bridge";
     
-    // Existing functions
-    m.def("init_renderer", &init_renderer, "Initialize GLFW and OpenGL");
-    m.def("upload_mesh", &upload_mesh_to_gpu, "Upload VRM mesh data to GPU");
-    m.def("clear_screen", &clear_screen, "Clear the frame buffer");
-    m.def("swap_buffers", &swap_buffers, "Swap window buffers");
-    m.def("should_close", &should_close, "Check if the window should exit");
-    m.def("terminate", &terminate, "Clean up and close the engine");
-    m.def("draw_mesh", &draw_mesh, "Draw the currently loaded mesh");
-    // Moves the camera relative to its current position
+    // Core functions
+    m.def("init_renderer", &init_renderer);
+    m.def("upload_mesh", &upload_mesh_to_gpu);
+    m.def("clear_screen", &clear_screen);
+    m.def("swap_buffers", &swap_buffers);
+    m.def("should_close", &should_close);
+    m.def("terminate", &terminate);
+    m.def("draw_scene", &draw_scene);
+    
+    // *** CRITICAL FIX: Texture upload ***
+    m.def("upload_texture", [](py::bytes data, bool srgb) -> int {
+        std::string buf = data;
+        GLuint tex_id = upload_texture_bytes(
+            reinterpret_cast<const unsigned char*>(buf.data()),
+            buf.size()
+        );
+        
+        // CRITICAL: Set as current texture
+        set_current_texture(tex_id);
+        
+        return static_cast<int>(tex_id);
+    }, py::arg("data"), py::arg("srgb") = true,
+       "Upload texture from bytes and set as current");
+    
+    // Camera controls
+    m.def("set_camera_position", [](float x, float y, float z) {
+        main_camera.pos = glm::vec3(x, y, z);
+    });
+    
+    m.def("set_camera_target", [](float x, float y, float z) {
+        main_camera.target = glm::vec3(x, y, z);
+    });
+    
     m.def("move_camera", [](float x, float y, float z) {
-        // Added glm::vec3 explicitly
         main_camera.pos += glm::vec3(x, y, z);
         main_camera.target += glm::vec3(x, y, z); 
-    }, "Move camera by x, y, z offset");
-    //Rotates the camera target (Q and E rotation)
-     m.def("rotate_camera", [](float angle_deg) {
-         float rad = glm::radians(angle_deg);
-         // Ensure you have #include <cmath> or use glm::cos/sin
-         float newX = glm::cos(rad) * (main_camera.target.x - main_camera.pos.x) - glm::sin(rad) * (main_camera.target.z - main_camera.pos.z);
-         float newZ = glm::sin(rad) * (main_camera.target.x - main_camera.pos.x) + glm::cos(rad) * (main_camera.target.z - main_camera.pos.z);
-         main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ); 
-     }, "Rotate camera around Y axis");
-    //Uploads texture
-    m.def("upload_texture", [](py::bytes data) {
-        std::string buf = data;
-        return upload_texture_bytes(
-            reinterpret_cast<const unsigned char*>(buf.data()),
-            static_cast<int>(buf.size())
-        );
-    }, "Upload texture bytes to GPU" );
-
-    
+    });
+    m.def("set_current_texture", &set_current_texture, "Set the active texture ID for rendering");
+    m.def("rotate_camera", [](float angle_deg) {
+        float rad = glm::radians(angle_deg);
+        float newX = glm::cos(rad) * (main_camera.target.x - main_camera.pos.x) - 
+                     glm::sin(rad) * (main_camera.target.z - main_camera.pos.z);
+        float newZ = glm::sin(rad) * (main_camera.target.x - main_camera.pos.x) + 
+                     glm::cos(rad) * (main_camera.target.z - main_camera.pos.z);
+        main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ);
+    });
 }
