@@ -24,7 +24,10 @@ GLuint current_texture = 0;
 float lastX = 640, lastY = 360;
 float yaw = -90.0f, pitch = 0.0f;
 bool firstMouse = true;
+bool escPressedLastFrame = false;
 bool mouseLocked = true;
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+
 
 // FLAG: Performance Tracking
 double lastTime = 0.0;
@@ -50,8 +53,10 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     if (!mouseLocked) return;
 
     if (firstMouse) {
-        lastX = xpos; lastY = ypos;
+        lastX = xpos; 
+        lastY = ypos;
         firstMouse = false;
+        return;
     }
 
     float xoffset = xpos - lastX;
@@ -66,35 +71,51 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     pitch += yoffset;
 
     // Constraint: Prevent the camera from flipping over
-    if (pitch > 89.0f) pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
+    //if (pitch > 89.0f) pitch = 89.0f;
+    //if (pitch < -89.0f) pitch = -89.0f;
+    pitch = glm::clamp(pitch, -89.0f, 89.0f);
 
     // Calculate the new target vector
     glm::vec3 front;
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     front.y = sin(glm::radians(pitch));
     front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+
+    cameraFront = glm::normalize(front);
     main_camera.target = main_camera.pos + glm::normalize(front);
 }
 
 void process_input(float dt) {
     if (!window) return;
 
+    bool escPressed = glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS;
+
     // FLAG: Escape to Toggle Mouse
-    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
-        if (mouseLocked == true) { 
-            mouseLocked = false;
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); 
-        } else if (mouseLocked == false) {
-            mouseLocked = true;
+    if (escPressed && !escPressedLastFrame) {
+        mouseLocked = !mouseLocked;
+
+        if (mouseLocked) { 
+            //mouseLocked = false;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            firstMouse = true;
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         }
     }
 
+    escPressedLastFrame = escPressed;
+
     float speed = 2.5f * dt;
-    glm::vec3 front = glm::normalize(main_camera.target - main_camera.pos);
-    front.y = 0.0f;
-    front = glm::normalize(front);
+    glm::vec3 front = cameraFront;//glm::normalize(glm::vec3(cameraFront.x, 0.0f, cameraFront.z));
+    //glm::vec3 front;
+    //front.x = cos(glm::radians(yaw));
+    //front.y = 0.0f;
+    //front.z = sin(glm::radians(yaw));
+    //front = glm::normalize(front);
+    
+    //glm::vec3 front = glm::normalize(main_camera.target - main_camera.pos);
+    //front.y = 0.0f;
+    //front = glm::normalize(front);
     
     glm::vec3 right = glm::normalize(glm::cross(front, main_camera.up));
     
@@ -108,6 +129,13 @@ void process_input(float dt) {
         main_camera.pos -= speed * right; //glm::normalize(glm::cross(main_camera.target - main_camera.pos, main_camera.up)) * speed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         main_camera.pos += speed * right; //glm::normalize(glm::cross(main_camera.target - main_camera.pos, main_camera.up)) * speed;
+
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        main_camera.pos += speed * main_camera.up;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        main_camera.pos -= speed * main_camera.up;
+
+    main_camera.target = main_camera.pos + cameraFront;
 }
 
 // FLAG: Shader Loader
@@ -181,7 +209,7 @@ int init_renderer(int width, int height) {
         return -1;
     }
 
-    glfwSwapInterval(1);  // Enabled VSync, change to 0 to turn it off.
+    glfwSwapInterval(0);  // Enabled VSync, change to 0 to turn it off.
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -278,6 +306,20 @@ void add_mesh_to_scene(
     glGenBuffers(1, &mesh.ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, i_size * sizeof(uint32_t), indices, GL_STATIC_DRAW);
+
+    // Joints (location 3)
+    glGenBuffers(1, &mesh.vbo_joints);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_joints);
+    glBufferData(GL_ARRAY_BUFFER, j_size * sizeof(uint32_t), joints, GL_STATIC_DRAW);
+    glVertexAttribIPointer(3, 4, GL_UNSIGNED_INT, 0, 0);
+    glEnableVertexAttribArray(3);
+
+    // Weights (location 4)
+    glGenBuffers(1, &mesh.vbo_weights);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_weights);
+    glBufferData(GL_ARRAY_BUFFER, w_size * sizeof(float), weights, GL_STATIC_DRAW);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(4);
 
     scene_meshes.push_back(mesh);
     //return scene_meshes.size() - 1;

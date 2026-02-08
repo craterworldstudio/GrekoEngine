@@ -13,7 +13,7 @@ def run_engine():
         sys.exit(1)
 
     # Load VRM
-    vrm_path = "assets/kisayo.vrm"
+    vrm_path = "assets/kisayov2.vrm"
     if not os.path.exists(vrm_path):
         print(f"❌ VRM not found: {vrm_path}")
         gn.terminate()
@@ -24,6 +24,7 @@ def run_engine():
     # FLAG: Render Parts List
     # We store each mesh piece separately instead of combining them.
     render_parts = []
+    primitive_count = 0
     
     for mesh_idx, mesh in enumerate(parsed_data.json["meshes"]):
         mesh_name = mesh.get("name", f"Mesh_{mesh_idx}")
@@ -34,12 +35,14 @@ def run_engine():
             # FLAG: Check for transparency tags
             # We look at the mesh name or the material index to identify face parts
             is_transparent = False
+            #texture_id = 0
             if "Face" in mesh_name or "Eye" in mesh_name or "Hair" in mesh_name:
                 is_transparent = True
 
             tex_id = 0
             if packed.get('texture') is not None:
-                tex_id = gn.upload_texture(bytes(packed['texture']), True)
+                tex_id = gn.upload_texture(bytes(packed['texture']), srgb=True)
+                print(f"     ✅ Texture ID: {tex_id}")
 
             render_parts.append({
                 "name": mesh_name,
@@ -52,6 +55,8 @@ def run_engine():
                 "tex_id": tex_id,
                 "transparent": is_transparent # Tag it for sorting
             })
+        
+
 
     # FLAG: The Sorting Logic
     # We create two groups so Opaque draws first and Transparent draws last.
