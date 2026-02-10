@@ -20,6 +20,7 @@ clang++ -O3 -shared -std=c++17 -fPIC \
     $($VENV_PYTHON -m pybind11 --includes) \
     native/bridge.cpp \
     native/renderer.cpp \
+    native/animation.cpp \
     native/texture_loader.cpp \
     -x c++ native/glad/glad.c \
     -I native \

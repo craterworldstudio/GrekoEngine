@@ -7,10 +7,11 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+
 #include "camera.hpp"
 #include "renderer.hpp"
-
 #include "texture_loader.hpp"
+#include "animation.hpp"
 
 // Define the global instance
 Camera main_camera;
@@ -130,9 +131,9 @@ void process_input(float dt) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         main_camera.pos += speed * right; //glm::normalize(glm::cross(main_camera.target - main_camera.pos, main_camera.up)) * speed;
 
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
         main_camera.pos += speed * main_camera.up;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
         main_camera.pos -= speed * main_camera.up;
 
     main_camera.target = main_camera.pos + cameraFront;
@@ -209,6 +210,8 @@ int init_renderer(int width, int height) {
         return -1;
     }
 
+    init_skeleton();
+
     glfwSwapInterval(0);  // Enabled VSync, change to 0 to turn it off.
 
     glEnable(GL_DEPTH_TEST);
@@ -261,6 +264,7 @@ struct GPUMesh {
     GLuint vbo_pos, vbo_norm, vbo_uv, vbo_joints, vbo_weights, ebo;
     int index_count;
     GLuint texture_id;
+    GLuint vbo_morph;
 };
 
 std::vector<GPUMesh> scene_meshes;
@@ -272,6 +276,7 @@ void add_mesh_to_scene(
     const uint32_t* joints, size_t j_size,
     const float* weights, size_t w_size,
     const uint32_t* indices, size_t i_size,
+    const float* morph_targets, size_t m_size,
     int tex_id
 ) {
     GPUMesh mesh;
@@ -311,7 +316,7 @@ void add_mesh_to_scene(
     glGenBuffers(1, &mesh.vbo_joints);
     glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_joints);
     glBufferData(GL_ARRAY_BUFFER, j_size * sizeof(uint32_t), joints, GL_STATIC_DRAW);
-    glVertexAttribIPointer(3, 4, GL_UNSIGNED_INT, 0, 0);
+    glVertexAttribIPointer(3, 4, GL_INT, 0, (void*)0);
     glEnableVertexAttribArray(3);
 
     // Weights (location 4)
@@ -320,6 +325,14 @@ void add_mesh_to_scene(
     glBufferData(GL_ARRAY_BUFFER, w_size * sizeof(float), weights, GL_STATIC_DRAW);
     glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(4);
+
+    if (morph_targets && m_size > 0) {
+    glGenBuffers(1, &mesh.vbo_morph);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_morph);
+    glBufferData(GL_ARRAY_BUFFER, m_size * sizeof(float), morph_targets, GL_STATIC_DRAW);
+    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+    glEnableVertexAttribArray(5);
+}
 
     scene_meshes.push_back(mesh);
     //return scene_meshes.size() - 1;
@@ -340,6 +353,11 @@ void draw_scene() {
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &proj[0][0]);
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
+
+    GLint jointLoc = glGetUniformLocation(shaderProgram, "uJointMatrices");
+    if (jointLoc != -1) {
+        glUniformMatrix4fv(jointLoc, 256, GL_FALSE, glm::value_ptr(joint_matrices[0]));
+    }
 
     for (const auto& mesh : scene_meshes) {
         // FLAG: The Critical Texture Bind
@@ -364,10 +382,18 @@ void draw_scene() {
 }
 
 GLuint upload_texture_bytes(const unsigned char* data, int size) {
-    g_texture = load_texture_from_memory(data, size);
+    g_texture = load_texture_from_memory(data, size, true);
     return g_texture;
 }
 // Store the uploaded texture ID
 void set_current_texture(GLuint tex_id) {
     current_texture = tex_id;
+}
+
+void set_morph_weight(float weight) {
+    glUseProgram(shaderProgram);
+    GLint loc = glGetUniformLocation(shaderProgram, "uMorphWeight");
+    if (loc != -1) {
+        glUniform1f(loc, weight);
+    }
 }

@@ -27,8 +27,10 @@ void add_mesh_to_scene(
     const uint32_t* joints, size_t j_size,
     const float* weights, size_t w_size,
     const uint32_t* indices, size_t i_size,
+    const float* morph_targets, size_t m_size,
     int tex_id
 );
 
 GLuint upload_texture_bytes(const unsigned char* data, int size);
 void set_current_texture(GLuint tex_id);
+void set_morph_weight(float weight);

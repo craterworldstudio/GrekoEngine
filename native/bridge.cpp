@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include "renderer.hpp"
+#include "animation.hpp"
 
 namespace py = pybind11;
 
@@ -16,6 +17,7 @@ void upload_mesh_to_gpu(
     py::array_t<uint32_t> joints,
     py::array_t<float> weights,
     py::array_t<uint32_t> indices,
+    py::array_t<float> morph_targets,
     int tex_id
 ) {
     auto v_ptr = vertices.data();
@@ -24,6 +26,7 @@ void upload_mesh_to_gpu(
     auto j_ptr = joints.data();
     auto w_ptr = weights.data();
     auto i_ptr = indices.data();
+    auto m_ptr = morph_targets.data();
 
     add_mesh_to_scene(
         v_ptr, vertices.size(), 
@@ -32,6 +35,7 @@ void upload_mesh_to_gpu(
         j_ptr, joints.size(), 
         w_ptr, weights.size(), 
         i_ptr, indices.size(),
+        m_ptr, morph_targets.size(),
         tex_id
     );
 }
@@ -48,7 +52,8 @@ PYBIND11_MODULE(greko_native, m) {
     m.def("terminate", &terminate);
     m.def("draw_scene", &draw_scene);
     
-    // *** CRITICAL FIX: Texture upload ***
+    
+    // *** Texture upload ***
     m.def("upload_texture", [](py::bytes data, bool srgb) -> int {
         std::string buf = data;
         GLuint tex_id = upload_texture_bytes(
@@ -56,12 +61,20 @@ PYBIND11_MODULE(greko_native, m) {
             buf.size()
         );
         
-        // CRITICAL: Set as current texture
+        // Set as current texture
         set_current_texture(tex_id);
         
         return static_cast<int>(tex_id);
     }, py::arg("data"), py::arg("srgb") = true,
        "Upload texture from bytes and set as current");
+
+    m.def("update_joints", [](py::array_t<float> matrices) {
+        auto r = matrices.unchecked<1>();
+        update_joints_from_buffer(r.data(0), (int)r.size());
+    }, "Upload new bone matrices to the GPU");
+
+    m.def("set_morph_weight", &set_morph_weight, 
+        "Set how much the face expression is applied (0.0 to 1.0)");
     
     // Camera controls
     m.def("set_camera_position", [](float x, float y, float z) {

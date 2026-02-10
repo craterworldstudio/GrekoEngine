@@ -1,3 +1,7 @@
+from datetime import time
+import time as timen
+import math
+from core.behaviours_manager import BehaviorManager
 import core.greko_native as gn
 import sys
 import os
@@ -13,11 +17,13 @@ def run_engine():
         sys.exit(1)
 
     # Load VRM
-    vrm_path = "assets/kisayov2.vrm"
+    vrm_path = "assets/kiyo.vrm"
     if not os.path.exists(vrm_path):
         print(f"❌ VRM not found: {vrm_path}")
         gn.terminate()
         return
+    
+    print(f"📂 Loading VRM: {vrm_path}")
 
     parsed_data = parse_glb(vrm_path)
     
@@ -31,7 +37,7 @@ def run_engine():
         
         for prim_idx, primitive in enumerate(mesh["primitives"]):
             packed = package_mesh(parsed_data.json, parsed_data.bin_blob, primitive)
-            
+
             # FLAG: Check for transparency tags
             # We look at the mesh name or the material index to identify face parts
             is_transparent = False
@@ -52,9 +58,13 @@ def run_engine():
                 "joints": packed['joints'],
                 "weights": packed['weights'],
                 "indices": packed['indices'],
+                "morph_targets": packed['morph_targets'],
                 "tex_id": tex_id,
                 "transparent": is_transparent # Tag it for sorting
             })
+
+            primitive_count += 1
+            print(f"   ✅ Packed {mesh_name} - Primitive {prim_idx} (Vertices: {len(packed['vertices'])})") 
         
 
 
@@ -77,15 +87,31 @@ def run_engine():
     
    # 1. During Setup (ONLY ONCE)
     for part in sorted_parts:
+        all_morphs = part.get("morph_targets", {})
+        blink_array = all_morphs.get("Fcl_EYE_Close", None)
+        if blink_array is None:
+            blink_array = np.zeros_like(part["vertices"], dtype=np.float32)
+
         gn.upload_mesh(
-            part["vertices"], part["normals"], part["uvs"],
-            part["joints"], part["weights"], part["indices"],
+            part["vertices"], 
+            part["normals"], 
+            part["uvs"],
+            part["joints"], 
+            part["weights"], 
+            part["indices"],
+            blink_array,
             part["tex_id"]
         )
+
+    manager = BehaviorManager()
+    manager.load_behaviors()
     
     # Main Loop remains the same
     while not gn.should_close():
         gn.clear_screen()
+
+        manager.update_all(gn)
+    
         gn.draw_scene() 
         gn.swap_buffers()
 

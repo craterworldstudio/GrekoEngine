@@ -23,6 +23,14 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
         read_accessor(gltf_json, bin_blob, attrs["TEXCOORD_0"]),
         dtype=np.float32
     )
+    # Morph Target Extraction    
+    target_names = gltf_json.get("meshes", [{}])[0].get("extras", {}).get("targetNames", [])
+    all_morphs = {}
+
+    if "targets" in primitive_data:
+        for i, target in enumerate(primitive_data["targets"]):
+            name = target_names[i] if i < len(target_names) else f"target_{i}"
+            all_morphs[name] = read_accessor(gltf_json, bin_blob, target["POSITION"])
 
     # === Skinning ===
     joints = np.array(
@@ -53,6 +61,7 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
         "weights": weights,
         "indices": indices,
         "index_count": len(indices),
+        "morph_targets": all_morphs,
 
         # MATERIAL
         "texture": texture_bytes,
