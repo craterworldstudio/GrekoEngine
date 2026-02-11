@@ -4,6 +4,7 @@
 #include <string>
 #include "renderer.hpp"
 #include "animation.hpp"
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -29,11 +30,24 @@ void upload_mesh_to_gpu(
 
     // FLAG: The Converter
     // We convert the Python list of NumPy arrays into a C++ vector of pointers
+    std::vector<py::array_t<float>> morph_arrays;
     std::vector<const float*> m_ptrs;
+
     for (auto item : morph_list) {
-        auto arr = item.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
-        m_ptrs.push_back(arr.data());
+        py::array_t<float, py::array::c_style | py::array::forcecast> arr =
+            item.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
+
+
+        if (arr.size() != vertices.size()) {
+        std::cout << "⚠ Morph size mismatch: "
+                  << arr.size() << " vs "
+                  << vertices.size() << std::endl;
+        }
+
+        morph_arrays.push_back(arr);     // KEEP ARRAY ALIVE
+        m_ptrs.push_back(arr.data());    // THEN GET POINTER
     }
+
 
     // Now this matches the signature in renderer.hpp perfectly!
     add_mesh_to_scene(
@@ -46,6 +60,15 @@ void upload_mesh_to_gpu(
         m_ptrs, // Pass the vector
         tex_id
     );
+}
+
+void update_morph_data(int mesh_index, int slot_index, py::array_t<float> new_data) {
+    // FLAG: Keep memory alive during the call
+    auto arr = new_data.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
+    
+    
+    // Call the renderer function we discussed
+    update_morph_slot(mesh_index, slot_index, arr.data(), arr.size());
 }
 
 PYBIND11_MODULE(greko_native, m) {
@@ -83,6 +106,8 @@ PYBIND11_MODULE(greko_native, m) {
 
     m.def("set_morph_weights", &set_morph_weights, 
         "Set how much the face expression is applied (0.0 to 1.0)");
+
+    m.def("update_morph_data", &update_morph_data, "Hot-swap a morph target's vertex data");
     
     // Camera controls
     m.def("set_camera_position", [](float x, float y, float z) {

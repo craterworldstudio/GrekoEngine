@@ -1,3 +1,4 @@
+#from dbm.ndbm import library
 import os
 import importlib
 import inspect
@@ -5,6 +6,7 @@ import inspect
 class BehaviorManager:
     def __init__(self):
         self.active_behaviors = []
+        self.face_index = -1
 
     def load_behaviors(self):
         """Scans core/behaviours and imports everything"""
@@ -21,18 +23,32 @@ class BehaviorManager:
                         print(f"🧩 Loaded Behavior: {name} from {filename}")
                         self.active_behaviors.append(obj())
 
+    def inject_morph_library(self, library):
+        for b in self.active_behaviors:
+            # We check if the behavior has a 'morph_library' attribute
+            if hasattr(b, "morph_library"):
+                b.morph_library = library
+                print(f"📖 Library injected into {type(b).__name__}")
+
+            if hasattr(b, "face_index"):
+                b.face_index = self.face_index
+                print(f"🎯 Assigned Face Index {self.face_index} to {type(b).__name__}")
+
     def update_all(self, gn):
         """Runs the logic for every behavior found"""
 
         current_weights = [0.0, 0.0, 0.0, 0.0]
 
         for behavior in self.active_behaviors:
-            weights_to_apply = behavior.update()
+            weights_to_apply = behavior.update(gn)
             
             if "Fcl_EYE_Close" in weights_to_apply:
                 current_weights[0] = max(current_weights[0], weights_to_apply["Fcl_EYE_Close"])
 
-            #if "Fcl_ALL_Surprised" in weights_to_apply:
-            #    current_weights[1] = max(current_weights[1], weights_to_apply["Fcl_ALL_Surprised"])
+            if "Fcl_ALL_Surprised" in weights_to_apply:
+                current_weights[1] = max(current_weights[1], weights_to_apply["Fcl_ALL_Surprised"])
+
+            if "PHONEME_ACTIVE" in weights_to_apply:
+                current_weights[2] = max(current_weights[2], weights_to_apply["PHONEME_ACTIVE"])
         
         gn.set_morph_weights(*current_weights)

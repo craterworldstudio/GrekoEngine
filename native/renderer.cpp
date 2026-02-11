@@ -332,10 +332,10 @@ void add_mesh_to_scene(
         glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_morphs[i]);
         
         if (i < morph_data_ptrs.size() && morph_data_ptrs[i] != nullptr) {
-            glBufferData(GL_ARRAY_BUFFER, v_size * sizeof(float), morph_data_ptrs[i], GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, v_size * sizeof(float), morph_data_ptrs[i], GL_DYNAMIC_DRAW);
         } else {
             std::vector<float> zeros(v_size, 0.0f);
-            glBufferData(GL_ARRAY_BUFFER, v_size * sizeof(float), zeros.data(), GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, v_size * sizeof(float), zeros.data(), GL_DYNAMIC_DRAW);
         }
 
         // FLAG: Use sizeof(float)*3 instead of 0 for the stride
@@ -414,4 +414,27 @@ void set_morph_weights(float w0, float w1, float w2, float w3) {
         // Send all 4 weights to the vec4 in the shader
         glUniform4f(loc, w0, w1, w2, w3);
     }
+}
+
+void update_morph_slot(int mesh_index, int slot_index, const float* new_data, size_t data_size) {
+    if (mesh_index < 0 || mesh_index >= scene_meshes.size() || slot_index < 0 || slot_index > 3) {
+        return;
+    }
+
+    GPUMesh& mesh = scene_meshes[mesh_index];
+    glBindVertexArray(mesh.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_morphs[slot_index]);
+    
+    // FLAG: glBufferSubData
+    // We don't re-allocate (glBufferData), we just "paste" over the existing memory.
+    // This is much faster than recreating the buffer.
+    glBufferSubData(GL_ARRAY_BUFFER, 0, data_size * sizeof(float), new_data);
+
+    // Re-tell the VAO exactly where this slot is. Location for Morph2 is 7.
+    int location = 5 + slot_index; 
+    glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(location);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 }

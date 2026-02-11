@@ -12,7 +12,7 @@ class Blinker:
         self.interval = 4.0
         self.blink_duration = 0.5 #inversely proportional to blink speed
 
-    def update(self):
+    def update(self, gn):
         """Calculates a natural-ish blink timing and returns weights"""
         t = time.time()
         weight = 0.0

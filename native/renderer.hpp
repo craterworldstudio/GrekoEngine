@@ -46,3 +46,4 @@ void add_mesh_to_scene(
 GLuint upload_texture_bytes(const unsigned char* data, int size);
 void set_current_texture(GLuint tex_id);
 void set_morph_weights(float w0, float w1, float w2, float w3);
+void update_morph_slot(int mesh_index, int slot_index, const float* new_data, size_t data_size);

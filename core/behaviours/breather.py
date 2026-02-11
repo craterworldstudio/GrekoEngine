@@ -6,7 +6,7 @@ class Breather:
         # We'll use the Surprise morph for a subtle chest/face expansion
         self.target_name = "Fcl_ALL_Surprised" 
 
-    def update(self):
+    def update(self, gn):
         t = time.time()
         # Slow, rhythmic breathing cycle (roughly 3 seconds)
         # We keep the weight very low (0.05) for a subtle "alive" look

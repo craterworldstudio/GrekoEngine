@@ -33,10 +33,10 @@ out vec3 vNormal; // for lighting
 
 void main()
 {
-    vec3 m0 = aMorph0 * (uMorphWeights.x + 0.000001);
-    vec3 m1 = aMorph1 * (uMorphWeights.y + 0.000001);
-    vec3 m2 = aMorph2 * (uMorphWeights.z + 0.000001);
-    vec3 m3 = aMorph3 * (uMorphWeights.w + 0.000001);
+    vec3 m0 = aMorph0 * uMorphWeights.x;
+    vec3 m1 = aMorph1 * uMorphWeights.y;
+    vec3 m2 = aMorph2 * uMorphWeights.z;
+    vec3 m3 = aMorph3 * uMorphWeights.w;
 
     vec3 totalMorphOffset = m0 + m1 + m2 + m3;
 
