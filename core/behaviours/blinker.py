@@ -10,7 +10,7 @@ class Blinker:
         
         self.strength = 1.0 
         self.interval = 4.0
-        self.blink_duration = 0.5
+        self.blink_duration = 0.5 #inversely proportional to blink speed
 
     def update(self):
         """Calculates a natural-ish blink timing and returns weights"""
@@ -26,8 +26,9 @@ class Blinker:
         
         # Return a dictionary of weights
         # This allows one behavior to control multiple facial expressions at once
-        return {
-            self.target_name: weight,
-            self.blink_right: weight,
-            self.blink_left: weight
-        }
+        return { "Fcl_EYE_Close": weight }
+        #return {
+        #    self.target_name: weight,
+        #    self.blink_right: weight,
+        #    self.blink_left: weight
+        #}

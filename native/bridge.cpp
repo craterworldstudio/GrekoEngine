@@ -17,7 +17,7 @@ void upload_mesh_to_gpu(
     py::array_t<uint32_t> joints,
     py::array_t<float> weights,
     py::array_t<uint32_t> indices,
-    py::array_t<float> morph_targets,
+    py::list morph_list, // FLAG: Changed to py::list for multiple arrays
     int tex_id
 ) {
     auto v_ptr = vertices.data();
@@ -26,8 +26,16 @@ void upload_mesh_to_gpu(
     auto j_ptr = joints.data();
     auto w_ptr = weights.data();
     auto i_ptr = indices.data();
-    auto m_ptr = morph_targets.data();
 
+    // FLAG: The Converter
+    // We convert the Python list of NumPy arrays into a C++ vector of pointers
+    std::vector<const float*> m_ptrs;
+    for (auto item : morph_list) {
+        auto arr = item.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
+        m_ptrs.push_back(arr.data());
+    }
+
+    // Now this matches the signature in renderer.hpp perfectly!
     add_mesh_to_scene(
         v_ptr, vertices.size(), 
         n_ptr, normals.size(),
@@ -35,7 +43,7 @@ void upload_mesh_to_gpu(
         j_ptr, joints.size(), 
         w_ptr, weights.size(), 
         i_ptr, indices.size(),
-        m_ptr, morph_targets.size(),
+        m_ptrs, // Pass the vector
         tex_id
     );
 }
@@ -73,7 +81,7 @@ PYBIND11_MODULE(greko_native, m) {
         update_joints_from_buffer(r.data(0), (int)r.size());
     }, "Upload new bone matrices to the GPU");
 
-    m.def("set_morph_weight", &set_morph_weight, 
+    m.def("set_morph_weights", &set_morph_weights, 
         "Set how much the face expression is applied (0.0 to 1.0)");
     
     // Camera controls

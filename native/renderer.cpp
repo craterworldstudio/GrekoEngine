@@ -29,6 +29,16 @@ bool escPressedLastFrame = false;
 bool mouseLocked = true;
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 
+//struct GPUMesh {
+//    GLuint vao;
+//    GLuint vbo_pos, vbo_norm, vbo_uv, vbo_joints, vbo_weights, ebo;
+//    int index_count;
+//    GLuint texture_id;
+//    GLuint vbo_morphs[4];
+//};
+
+std::vector<GPUMesh> scene_meshes;
+float g_morph_weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 // FLAG: Performance Tracking
 double lastTime = 0.0;
@@ -259,16 +269,6 @@ void terminate() {
     glfwTerminate();
 }
 
-struct GPUMesh {
-    GLuint vao;
-    GLuint vbo_pos, vbo_norm, vbo_uv, vbo_joints, vbo_weights, ebo;
-    int index_count;
-    GLuint texture_id;
-    GLuint vbo_morph;
-};
-
-std::vector<GPUMesh> scene_meshes;
-
 void add_mesh_to_scene(
     const float* vertices, size_t v_size,
     const float* normals, size_t n_size,
@@ -276,15 +276,15 @@ void add_mesh_to_scene(
     const uint32_t* joints, size_t j_size,
     const float* weights, size_t w_size,
     const uint32_t* indices, size_t i_size,
-    const float* morph_targets, size_t m_size,
+    const std::vector<const float*>& morph_data_ptrs, // List of pointers
+    //const std::vector<size_t>& morph_sizes,
     int tex_id
 ) {
-    GPUMesh mesh;
-    mesh.index_count = i_size;
-    mesh.texture_id = tex_id;
 
+    GPUMesh mesh;
     glGenVertexArrays(1, &mesh.vao);
     glBindVertexArray(mesh.vao);
+    
 
     // Positions
     glGenBuffers(1, &mesh.vbo_pos);
@@ -326,14 +326,26 @@ void add_mesh_to_scene(
     glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(4);
 
-    if (morph_targets && m_size > 0) {
-    glGenBuffers(1, &mesh.vbo_morph);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_morph);
-    glBufferData(GL_ARRAY_BUFFER, m_size * sizeof(float), morph_targets, GL_STATIC_DRAW);
-    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-    glEnableVertexAttribArray(5);
-}
+    // Morph Targets (locations 5, 6, 7, 8)
+    for (int i = 0; i < 4; i++) {
+        glGenBuffers(1, &mesh.vbo_morphs[i]);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_morphs[i]);
+        
+        if (i < morph_data_ptrs.size() && morph_data_ptrs[i] != nullptr) {
+            glBufferData(GL_ARRAY_BUFFER, v_size * sizeof(float), morph_data_ptrs[i], GL_STATIC_DRAW);
+        } else {
+            std::vector<float> zeros(v_size, 0.0f);
+            glBufferData(GL_ARRAY_BUFFER, v_size * sizeof(float), zeros.data(), GL_STATIC_DRAW);
+        }
 
+        // FLAG: Use sizeof(float)*3 instead of 0 for the stride
+        // This ensures the GPU jumps exactly 12 bytes between vertices
+        glVertexAttribPointer(5 + i, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(5 + i);
+    }
+
+    mesh.index_count = (int)i_size;
+    mesh.texture_id = (GLuint)tex_id;
     scene_meshes.push_back(mesh);
     //return scene_meshes.size() - 1;
 }
@@ -390,10 +402,16 @@ void set_current_texture(GLuint tex_id) {
     current_texture = tex_id;
 }
 
-void set_morph_weight(float weight) {
+void set_morph_weights(float w0, float w1, float w2, float w3) {
+    g_morph_weights[0] = w0;
+    g_morph_weights[1] = w1;
+    g_morph_weights[2] = w2;
+    g_morph_weights[3] = w3;
+
     glUseProgram(shaderProgram);
-    GLint loc = glGetUniformLocation(shaderProgram, "uMorphWeight");
+    GLint loc = glGetUniformLocation(shaderProgram, "uMorphWeights");
     if (loc != -1) {
-        glUniform1f(loc, weight);
+        // Send all 4 weights to the vec4 in the shader
+        glUniform4f(loc, w0, w1, w2, w3);
     }
 }

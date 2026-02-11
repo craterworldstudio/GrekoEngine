@@ -23,11 +23,16 @@ class BehaviorManager:
 
     def update_all(self, gn):
         """Runs the logic for every behavior found"""
+
+        current_weights = [0.0, 0.0, 0.0, 0.0]
+
         for behavior in self.active_behaviors:
             weights_to_apply = behavior.update()
             
-            for name, weight in weights_to_apply.items():
-                # FLAG: Pass the weight to the engine
-                # For now, since your C++ engine has one global weight:
-                if weight > 0: 
-                    gn.set_morph_weight(weight)
+            if "Fcl_EYE_Close" in weights_to_apply:
+                current_weights[0] = max(current_weights[0], weights_to_apply["Fcl_EYE_Close"])
+
+            #if "Fcl_ALL_Surprised" in weights_to_apply:
+            #    current_weights[1] = max(current_weights[1], weights_to_apply["Fcl_ALL_Surprised"])
+        
+        gn.set_morph_weights(*current_weights)

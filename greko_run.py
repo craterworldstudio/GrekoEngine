@@ -86,11 +86,25 @@ def run_engine():
     print("🎮 Use WASD + mouse to navigate. ESC to toggle mouse.")
     
    # 1. During Setup (ONLY ONCE)
+    MORPH_SLOTS = ["Fcl_EYE_Close", "Fcl_ALL_Surprised", "Fcl_MTH_A", "Fcl_MTH_I"]
     for part in sorted_parts:
-        all_morphs = part.get("morph_targets", {})
-        blink_array = all_morphs.get("Fcl_EYE_Close", None)
-        if blink_array is None:
-            blink_array = np.zeros_like(part["vertices"], dtype=np.float32)
+        all_morphs = part["morph_targets"]
+
+        upload_list = []
+
+        print(f"\n📦 Part: {part.get('name', 'Unknown')}")
+        for i, slot_name in enumerate(MORPH_SLOTS):
+            if slot_name in all_morphs:
+                data = all_morphs[slot_name]
+                # FLAG: Print the "Energy" of the morph
+                print(f"  Slot {i} ({slot_name}): Size {len(data)}, Sum {np.sum(np.abs(data)):.2f}")
+                upload_list.append(data)
+            else:
+                print(f"  Slot {i} ({slot_name}): EMPTY (Zeros)")
+                upload_list.append(np.zeros_like(part["vertices"]))
+        #blink_array = all_morphs.get("Fcl_EYE_Close", None)
+        #if blink_array is None:
+        #    blink_array = np.zeros_like(part["vertices"], dtype=np.float32)
 
         gn.upload_mesh(
             part["vertices"], 
@@ -99,9 +113,11 @@ def run_engine():
             part["joints"], 
             part["weights"], 
             part["indices"],
-            blink_array,
+            upload_list,
             part["tex_id"]
         )
+
+        
 
     manager = BehaviorManager()
     manager.load_behaviors()
