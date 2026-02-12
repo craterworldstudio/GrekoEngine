@@ -421,7 +421,7 @@ void update_morph_slot(int mesh_index, int slot_index, const float* new_data, si
         return;
     }
 
-    std::cout << "Mesh: " << mesh_index 
+    std::cout << " Mesh: " << mesh_index 
           << " Slot: " << slot_index 
           << " Size: " << data_size
           << std::endl;
