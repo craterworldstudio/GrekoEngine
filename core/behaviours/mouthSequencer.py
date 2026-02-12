@@ -8,14 +8,14 @@ class MouthSequencer:
         self.step_duration = 0.5  # Seconds per vowel
         self.last_step_time = time.time()
 
-        self.face_index = 0 
+        self.face_indices = []
         
         # We need access to the full library of morph arrays
         self.morph_library = {} 
         self.target_slot = 2  # We'll use Slot 2 for the 'active' vowel
 
     def update(self, gn):
-        if not self.morph_library or self.face_index == -1:
+        if not self.morph_library or not self.face_indices:
             return {} # Wait until data is injected
         
         now = time.time()
@@ -30,8 +30,11 @@ class MouthSequencer:
             if vowel_name in self.morph_library:
                 # FLAG: Dynamic Swap
                 # This pushes the new vertex offsets to the GPU immediately
-                gn.update_morph_data(self.face_index, self.target_slot, self.morph_library[vowel_name])
-                print(f"👄 Mouth Swapped to: {vowel_name}")
+                for idx in self.face_indices:
+                    gn.update_morph_data(idx, self.target_slot, self.morph_library[vowel_name])
+
+                    #gn.update_morph_data(self.face_index, self.target_slot, self.morph_library[vowel_name])
+                    #print(f"👄 Mouth Swapped to: {vowel_name}")
 
             
 

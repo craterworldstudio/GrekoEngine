@@ -6,7 +6,7 @@ import inspect
 class BehaviorManager:
     def __init__(self):
         self.active_behaviors = []
-        self.face_index = -1
+        self.face_mesh_indices = []
 
     def load_behaviors(self):
         """Scans core/behaviours and imports everything"""
@@ -30,9 +30,9 @@ class BehaviorManager:
                 b.morph_library = library
                 print(f"📖 Library injected into {type(b).__name__}")
 
-            if hasattr(b, "face_index"):
-                b.face_index = self.face_index
-                print(f"🎯 Assigned Face Index {self.face_index} to {type(b).__name__}")
+            if hasattr(b, "face_indices"):
+                b.face_indices = self.face_mesh_indices
+                print(f"🎯 Assigned Face Indices {self.face_mesh_indices} to {type(b).__name__}")
 
     def update_all(self, gn):
         """Runs the logic for every behavior found"""

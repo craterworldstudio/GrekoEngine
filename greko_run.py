@@ -86,16 +86,24 @@ def run_engine():
     print("🎮 Use WASD + mouse to navigate. ESC to toggle mouse.")
     
    # 1. During Setup (ONLY ONCE)
-    MORPH_SLOTS = ["Fcl_EYE_Close", "Fcl_ALL_Surprised", "Fcl_MTH_A", "Fcl_MTH_I"]
-    face_mesh_index = -1
+    MORPH_SLOTS = ["Fcl_EYE_Close", "Fcl_ALL_Surprised", "Fcl_MTH_E", "Fcl_MTH_I"]
+    #face_mesh_index = -1
+    face_mesh_indices = []
     face_morph_library = {} 
+    
 
     for i, part in enumerate(sorted_parts):
         if "Face" in part["name"]:
             # Save every morph the VRM has into our library
-            face_mesh_index = i
+            face_mesh_indices.append(i)
             face_morph_library = part["morph_targets"]
             print(f"🎯 Face detected at index {i}")
+            
+
+        #if "Fcl_MTH_A" in part["morph_targets"]:
+        #    face_mesh_index = i
+            
+
 
         all_morphs = part["morph_targets"]
         upload_list = []
@@ -129,7 +137,7 @@ def run_engine():
     manager.load_behaviors()
 
     # Pass THIS index to the manager/sequencer
-    manager.face_index = face_mesh_index # Set it here
+    manager.face_mesh_indices = face_mesh_indices # Set it here
     manager.inject_morph_library(face_morph_library) 
     
     # Main Loop remains the same
