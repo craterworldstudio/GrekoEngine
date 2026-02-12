@@ -6,7 +6,8 @@ class MouthSequencer:
         self.phrase = ["Fcl_MTH_A", "Fcl_MTH_E", "Fcl_MTH_I", "Fcl_MTH_O", "Fcl_MTH_U"]
         self.current_index = 0
         self.step_duration = 0.5  # Seconds per vowel
-        self.last_step_time = 0
+        self.last_step_time = time.time()
+
         self.face_index = 0 
         
         # We need access to the full library of morph arrays

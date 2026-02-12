@@ -417,9 +417,16 @@ void set_morph_weights(float w0, float w1, float w2, float w3) {
 }
 
 void update_morph_slot(int mesh_index, int slot_index, const float* new_data, size_t data_size) {
-    if (mesh_index < 0 || mesh_index >= scene_meshes.size() || slot_index < 0 || slot_index > 3) {
+    if (mesh_index < 0 || mesh_index >= scene_meshes.size() || slot_index < 0 || slot_index >= 4) {
         return;
     }
+
+    std::cout << "Mesh: " << mesh_index 
+          << " Slot: " << slot_index 
+          << " Size: " << data_size
+          << std::endl;
+
+
 
     GPUMesh& mesh = scene_meshes[mesh_index];
     glBindVertexArray(mesh.vao);
@@ -430,11 +437,11 @@ void update_morph_slot(int mesh_index, int slot_index, const float* new_data, si
     // This is much faster than recreating the buffer.
     glBufferSubData(GL_ARRAY_BUFFER, 0, data_size * sizeof(float), new_data);
 
+    
     // Re-tell the VAO exactly where this slot is. Location for Morph2 is 7.
-    int location = 5 + slot_index; 
-    glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(location);
-
+    //int location = 5 + slot_index; 
+    //glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    //glEnableVertexAttribArray(location);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
