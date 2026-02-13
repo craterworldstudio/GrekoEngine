@@ -138,7 +138,10 @@ def run_engine():
 
     # Pass THIS index to the manager/sequencer
     manager.face_mesh_indices = face_mesh_indices # Set it here
-    manager.inject_morph_library(face_morph_library) 
+    manager.inject_morph_library(face_morph_library)
+
+    manager.trigger_mouth_sequence("test.gpseq")
+
     
     # Main Loop remains the same
     while not gn.should_close():

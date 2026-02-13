@@ -1,7 +1,9 @@
 import time
 import math
 
-class Breather:
+from core.behaviours_manager import BehaviorBase
+
+class Breather(BehaviorBase):
     def __init__(self):
         # We'll use the Surprise morph for a subtle chest/face expansion
         self.target_name = "Fcl_ALL_Surprised" 

@@ -1,7 +1,9 @@
 import time
 import math
 
-class Blinker:
+from core.behaviours_manager import BehaviorBase
+
+class Blinker(BehaviorBase):
     def __init__(self):
         # Native VRM Names
         self.target_name = "Fcl_EYE_Close"  

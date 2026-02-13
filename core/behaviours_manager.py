@@ -1,7 +1,11 @@
 #from dbm.ndbm import library
+from fileinput import filename
 import os
 import importlib
 import inspect
+
+class BehaviorBase:
+    pass
 
 class BehaviorManager:
     def __init__(self):
@@ -19,7 +23,7 @@ class BehaviorManager:
                 # FLAG: Reflection
                 # Find any class inside the file that looks like a behavior
                 for name, obj in inspect.getmembers(module):
-                    if inspect.isclass(obj) and name != "BehaviorBase":
+                    if inspect.isclass(obj) and issubclass(obj, BehaviorBase) and obj is not BehaviorBase:
                         print(f"🧩 Loaded Behavior: {name} from {filename}")
                         self.active_behaviors.append(obj())
 
@@ -33,6 +37,14 @@ class BehaviorManager:
             if hasattr(b, "face_indices"):
                 b.face_indices = self.face_mesh_indices
                 print(f"🎯 Assigned Face Indices {self.face_mesh_indices} to {type(b).__name__}")
+
+    def trigger_mouth_sequence(self, filename):
+        for b in self.active_behaviors:
+            if type(b).__name__ == "MouthSequencer":
+                b.load(filename)
+                print(f"🎬 Triggered mouth sequence: {filename}")
+
+
 
     def update_all(self, gn):
         """Runs the logic for every behavior found"""
