@@ -11,12 +11,13 @@ class PhonemeEvent:
         self.duration = duration
 
 PHONEME_MAP = {
-    "A": "Fcl_MTH_A",
-    "E": "Fcl_MTH_E",
-    "I": "Fcl_MTH_I",
-    "O": "Fcl_MTH_O",
-    "U": "Fcl_MTH_U",
-    "REST": None
+    "A":        "Fcl_MTH_A",
+    "E":        "Fcl_MTH_E",
+    "I":        "Fcl_MTH_I",
+    "O":        "Fcl_MTH_O",
+    "U":        "Fcl_MTH_U",
+    "REST":     "Fcl_MTH_Close",  # You must have this morph
+    "PAUSE":    "HOLD"
 }
 
 
@@ -89,38 +90,6 @@ class MouthSequencer(BehaviorBase):
                 events.append(PhonemeEvent(phoneme, duration))
  
         return events
-    
-
-    #def update(self, gn):
-    #    if not self.morph_library or not self.face_indices:
-    #        return {} # Wait until data is injected
-    #    
-    #    now = time.time()
-    #    
-    #    if now - self.last_step_time > self.step_duration:
-    #        self.last_step_time = now
-    #        
-    #        # 1. Get the name of the next vowel in the sequence
-    #        vowel_name = self.phrase[self.current_index]
-    #        
-    #        # 2. Tell the engine to swap the GPU buffer for the Face mesh (Index 0)
-    #        if vowel_name in self.morph_library:
-    #            # FLAG: Dynamic Swap
-    #            # This pushes the new vertex offsets to the GPU immediately
-    #            for idx in self.face_indices:
-    #                gn.update_morph_data(idx, self.target_slot, self.morph_library[vowel_name])
-#
-    #                #gn.update_morph_data(self.face_index, self.target_slot, self.morph_library[vowel_name])
-    #                #print(f"👄 Mouth Swapped to: {vowel_name}")
-#
-    #        
-#
-    #        # 3. Increment sequence
-    #        self.current_index = (self.current_index + 1) % len(self.phrase)
-#
-    #    # We return a weight of 1.0 for Slot 2 so the mouth is always 'on'
-    #    return { "PHONEME_ACTIVE": 1.0 }
-    
 
     def update(self, gn):
 
@@ -136,31 +105,43 @@ class MouthSequencer(BehaviorBase):
 
         if self.current_index >= len(self.timeline):
             self.playing = False
-            self.current_mapped_name = None
-            return {"PHONEME_ACTIVE": 0.0}
+            #self.current_mapped_name = None
+            #return {"PHONEME_ACTIVE": 0.0}
 
-        event = self.timeline[self.current_index]
-
-        # Apply morph swap if exists
-        mapped_name = PHONEME_MAP.get(event.phoneme)
-
-        # REST or unknown phoneme
-        if mapped_name is None:
-            if self.current_mapped_name is not None:
-                self.current_mapped_name = None
-            return {"PHONEME_ACTIVE": 0.0}
-        
-        if mapped_name != self.current_mapped_name:
-            
-
-            if mapped_name in self.morph_library:
+            close_name = PHONEME_MAP["REST"]
+            if close_name in self.morph_library:
                 for idx in self.face_indices:
                     gn.update_morph_data(
                         idx,
                         self.target_slot,
-                        self.morph_library[mapped_name]
+                        self.morph_library[close_name]
                     )
+                self.current_mapped_name = close_name
+
+            return {"PHONEME_ACTIVE": 0.0}
+
+
+        event = self.timeline[self.current_index]
+        # Apply morph swap if exists
+        mapped_name = PHONEME_MAP.get(event.phoneme)
+
+        #PAUSE or HOLD - we just skip morph changes but keep the timing
+        if mapped_name == "HOLD": pass
+
+        # REST or unknown phoneme
+        elif mapped_name:
+            if mapped_name != self.current_mapped_name:
+                if mapped_name in self.morph_library:
+                    for idx in self.face_indices:
+                        gn.update_morph_data(
+                            idx,
+                            self.target_slot,
+                            self.morph_library[mapped_name]
+                        )
+
                 self.current_mapped_name = mapped_name
+
+        else: pass
 
         self.current_time += dt
 
@@ -169,3 +150,35 @@ class MouthSequencer(BehaviorBase):
             self.current_index += 1
 
         return {"PHONEME_ACTIVE": 1.0}
+#
+#
+#            if self.current_mapped_name is not None:
+#                self.current_mapped_name = None
+#
+#            self.current_time += dt
+#            if self.current_time >= event.duration:
+#                self.current_time = 0.0
+#                self.current_index += 1
+#
+#            #return {"PHONEME_ACTIVE": 0.0}
+#        
+#        if mapped_name != self.current_mapped_name:
+#            
+#
+#            if mapped_name in self.morph_library:
+#                for idx in self.face_indices:
+#                    gn.update_morph_data(
+#                        idx,
+#                        self.target_slot,
+#                        self.morph_library[mapped_name]
+#                    )
+#                self.current_mapped_name = mapped_name
+#
+#        self.current_time += dt
+#
+#        if self.current_time >= event.duration:
+#            self.current_time = 0.0
+#            self.current_index += 1
+#
+#        return {"PHONEME_ACTIVE": 1.0}
+#
