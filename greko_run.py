@@ -1,13 +1,15 @@
 from datetime import time
 import time as timen
 import math
-from core.behaviours_manager import BehaviorManager
-import core.greko_native as gn
 import sys
 import os
 import numpy as np
 
+import core.greko_native as gn
+
 from core.glb_parser import parse_glb
+from core.skeleton import Skeleton
+from core.behaviours_manager import BehaviorManager
 from core.mesh_data import package_mesh
 
 def run_engine():
@@ -26,6 +28,10 @@ def run_engine():
     print(f"📂 Loading VRM: {vrm_path}")
 
     parsed_data = parse_glb(vrm_path)
+    print("🦴 Building Skeleton...")
+    skeleton = Skeleton(parsed_data.json, parsed_data.bin_blob)
+    print("Joint count:", len(skeleton.joint_nodes))
+
     
     # FLAG: Render Parts List
     # We store each mesh piece separately instead of combining them.
@@ -48,7 +54,7 @@ def run_engine():
             tex_id = 0
             if packed.get('texture') is not None:
                 tex_id = gn.upload_texture(bytes(packed['texture']), srgb=True)
-                print(f"     ✅ Texture ID: {tex_id}")
+                #print(f"     ✅ Texture ID: {tex_id}")
 
             render_parts.append({
                 "name": mesh_name,
@@ -64,7 +70,7 @@ def run_engine():
             })
 
             primitive_count += 1
-            print(f"   ✅ Packed {mesh_name} - Primitive {prim_idx} (Vertices: {len(packed['vertices'])})") 
+            #print(f"   ✅ Packed {mesh_name} - Primitive {prim_idx} (Vertices: {len(packed['vertices'])})") 
         
 
 
@@ -97,7 +103,7 @@ def run_engine():
             # Save every morph the VRM has into our library
             face_mesh_indices.append(i)
             face_morph_library = part["morph_targets"]
-            print(f"🎯 Face detected at index {i}")
+            #print(f"🎯 Face detected at index {i}")
             
 
         #if "Fcl_MTH_A" in part["morph_targets"]:
@@ -108,15 +114,15 @@ def run_engine():
         all_morphs = part["morph_targets"]
         upload_list = []
 
-        print(f"\n📦 Part: {part.get('name', 'Unknown')}")
+        #print(f"\n📦 Part: {part.get('name', 'Unknown')}")
         for i, slot_name in enumerate(MORPH_SLOTS):
             if slot_name in all_morphs:
                 data = all_morphs[slot_name]
                 # FLAG: Print the "Energy" of the morph
-                print(f"  Slot {i} ({slot_name}): Size {len(data)}, Sum {np.sum(np.abs(data)):.2f}")
+                #print(f"  Slot {i} ({slot_name}): Size {len(data)}, Sum {np.sum(np.abs(data)):.2f}")
                 upload_list.append(data)
             else:
-                print(f"  Slot {i} ({slot_name}): EMPTY (Zeros)")
+                #print(f"  Slot {i} ({slot_name}): EMPTY (Zeros)")
                 upload_list.append(np.zeros_like(part["vertices"]))
         #blink_array = all_morphs.get("Fcl_EYE_Close", None)
         #if blink_array is None:
@@ -146,6 +152,31 @@ def run_engine():
     # Main Loop remains the same
     while not gn.should_close():
         gn.clear_screen()
+
+        # --- Procedural Head Sway Test ---
+        t = timen.time()
+        angle = math.sin(t) * 0.6  # smooth left-right
+        
+        c = math.cos(angle)
+        s = math.sin(angle)
+        
+        rot = np.identity(4, dtype=np.float32)
+        rot[0, 0] = c
+        rot[0, 2] = s
+        rot[2, 0] = -s
+        rot[2, 2] = c
+        
+        HEAD_INDEX = 18
+        
+        # Apply rotation on top of bind pose
+        skeleton.local_matrices[HEAD_INDEX] = rot @ skeleton.bind_locals[HEAD_INDEX]
+        
+        skeleton.update()
+        
+        joint_buffer = skeleton.get_skinning_buffer()
+        gn.update_joints(joint_buffer)
+
+
 
         manager.update_all(gn)
     
