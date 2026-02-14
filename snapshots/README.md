@@ -5,7 +5,7 @@ This file tracks the evolution of the Greko Engine, from the first pink sliver t
 ---
 
 ## Available Snapshots
-▶️ **[V3.3 — Morph Stability & Live Phonemes](./V3.3.md)**
+▶️ **[V3.3 — Morph Stability & Live Phonemes(Previous)](./V3.3.md)**
 - **Core Breakthrough:** Stable GPU morph hot-swapping using `glBufferSubData`.
 - **Major Fix:** Eliminated vertex spikes and buffer corruption during runtime blendshape updates.
 - **New System:** MouthSequencer with dynamic phoneme injection (A/E/I/O/U).
@@ -13,7 +13,7 @@ This file tracks the evolution of the Greko Engine, from the first pink sliver t
 - **Status:** Real-time facial morphing stable at 70–120 FPS on low-end GPU.
 
 
-▶️ **[V3.0 — The Greko Hybrid "Muscle" (Current)](./V3.0.md)**
+▶️ **[V3.0 — The Greko Hybrid "Muscle"](./V3.0.md)**
 - **Tech:** Python "Brain" + C++ "Muscle" (Custom Bridge).
 - **Core Change:** Ditched Assimp/Panda3D to solve the "Invisible Face" problem.
 - **Status:** Movement smooth, Depth-test fixed, FPS counter live.
