@@ -159,17 +159,19 @@ def run_engine():
         
         c = math.cos(angle)
         s = math.sin(angle)
-        
-        rot = np.identity(4, dtype=np.float32)
-        rot[0, 0] = c
-        rot[0, 2] = s
-        rot[2, 0] = -s
-        rot[2, 2] = c
-        
+
         HEAD_INDEX = 18
+
+        bind = skeleton.bind_locals[HEAD_INDEX].copy()
         
-        # Apply rotation on top of bind pose
-        skeleton.local_matrices[HEAD_INDEX] = rot @ skeleton.bind_locals[HEAD_INDEX]
+        rot3 = np.array([
+                [ c, 0,  s],
+                [ 0, 1,  0],
+                [-s, 0,  c]
+            ], dtype=np.float32)
+        
+        bind[:3, :3] = rot3 @ bind[:3, :3]
+        skeleton.local_matrices[HEAD_INDEX] = bind # Apply rotation on top of bind pose
         
         skeleton.update()
         

@@ -103,6 +103,6 @@ class Skeleton:
 
         for i in range(len(self.joint_nodes)):
             mat = self.global_matrices[i] @ self.inverse_bind[i]
-            final.append(mat.flatten())
+            final.append(mat.T.flatten())
 
         return np.concatenate(final).astype(np.float32)
