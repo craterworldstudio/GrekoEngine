@@ -22,11 +22,20 @@ clang++ -O3 -shared -std=c++17 -fPIC \
     native/renderer.cpp \
     native/animation.cpp \
     native/texture_loader.cpp \
+    native/imgui/imgui.cpp \
+    native/imgui/imgui_draw.cpp \
+    native/imgui/imgui_widgets.cpp \
+    native/imgui/imgui_tables.cpp \
+    native/imgui/backends/imgui_impl_glfw.cpp \
+    native/imgui/backends/imgui_impl_opengl3.cpp \
     -x c++ native/glad/glad.c \
     -I native \
     -I./native/glad \
+    -I./native/imgui \
+    -I./native/imgui/backends \
     -o core/greko_native$PY_SUFFIX \
     -lGL -lglfw -ldl
+
 
 # -------------------------------
 # Sanity check

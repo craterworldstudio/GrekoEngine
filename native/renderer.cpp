@@ -7,6 +7,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_glfw.h"
+#include "imgui/backends/imgui_impl_opengl3.h"
 
 #include "camera.hpp"
 #include "renderer.hpp"
@@ -39,10 +42,25 @@ glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 
 std::vector<GPUMesh> scene_meshes;
 float g_morph_weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+static int last_selected_bone = -1;
 
 // FLAG: Performance Tracking
 double lastTime = 0.0;
 int nbFrames = 0;
+bool editMode = false;
+double g_fps = 0.0;
+
+int selected_bone = 0;
+
+glm::vec3 editorBonePosition = glm::vec3(0.0f);
+glm::vec3 editorBoneAxis = glm::vec3(1, 0, 0);
+float editorBoneAngle        = 0.0f;
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
 
 void update_fps_counter() {
     double currentTime = glfwGetTime();
@@ -51,12 +69,19 @@ void update_fps_counter() {
         // FLAG: The \r Trick
         // \r moves the cursor back to the start of the line without making a new one.
         // This creates a "live" updating line in your terminal.
-        printf("\rFPS: %d | Cam: [%.1f, %.1f, %.1f]", 
-                nbFrames, main_camera.pos.x, main_camera.pos.y, main_camera.pos.z);
-        fflush(stdout); 
+        //printf("\rFPS: %d | Cam: [%.1f, %.1f, %.1f]", 
+        //        nbFrames, main_camera.pos.x, main_camera.pos.y, main_camera.pos.z);
+        //fflush(stdout); 
 
+        if (currentTime - lastTime >= 1.0) {
+        g_fps = nbFrames;
         nbFrames = 0;
         lastTime += 1.0;
+        }
+
+
+        //nbFrames = 0;
+        //lastTime += 1.0;
     }
 }
 
@@ -147,6 +172,16 @@ void process_input(float dt) {
         main_camera.pos -= speed * main_camera.up;
 
     main_camera.target = main_camera.pos + cameraFront;
+
+    //if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS)
+    //    editMode = !editMode;
+
+    if (is_key_pressed(GLFW_KEY_F1))
+    {
+        editMode = !editMode;
+        std::cout << "Edit Mode: " << editMode << std::endl;
+    }
+
 }
 
 // FLAG: Shader Loader
@@ -212,8 +247,10 @@ int init_renderer(int width, int height) {
         return -1;
     }
     glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwMakeContextCurrent(window);
+    //glfwSetKeyCallback(window, key_callback);
 
     if (!gladLoadGL( (GLADloadfunc)glfwGetProcAddress)) {
         std::cerr << "❌ Failed to initialize GLAD\n";
@@ -232,6 +269,17 @@ int init_renderer(int width, int height) {
     
     // FLAG: Don't forget to call this!
     setup_debug_shader();
+
+    // ---- IMGUI INIT ----
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.FontGlobalScale = 1.1f;
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 430");
+
     
     std::cout << "✅ Renderer Initialized: OpenGL " << glGetString(GL_VERSION) << std::endl;
     return 0;
@@ -350,8 +398,169 @@ void add_mesh_to_scene(
     //return scene_meshes.size() - 1;
 }
 
+void decompose_bone_transform(
+    const glm::mat4& mat,
+    glm::vec3& outPos,
+    glm::vec3& outAxis,
+    float& outAngleDeg)
+{
+    // Extract position
+    outPos = glm::vec3(mat[3]);
+
+    // Extract rotation (remove translation)
+    glm::mat3 rotMat = glm::mat3(mat);
+
+    // Convert to quaternion
+    glm::quat q = glm::quat_cast(rotMat);
+
+    // Convert to axis-angle
+    float angleRad = 2.0f * acos(q.w);
+    float s = sqrt(1.0f - q.w * q.w);
+
+    if (s < 0.001f)
+    {
+        outAxis = glm::vec3(1, 0, 0); // fallback axis
+    }
+    else
+    {
+        outAxis = glm::vec3(q.x / s, q.y / s, q.z / s);
+    }
+
+    outAngleDeg = glm::degrees(angleRad);
+}
+
+
 // One call from Python draws EVERYTHING stored in the vector.
 void draw_scene() {
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    // ---- DEBUG OVERLAY (Top-Left HUD Style) ----
+    ImGui::SetNextWindowPos(ImVec2(10, 10));
+    ImGui::SetNextWindowSize(ImVec2(140, 170));
+    ImGui::SetNextWindowBgAlpha(0.35f);
+    ImGui::Begin("Debug", nullptr,
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_AlwaysAutoResize);
+
+    ImGui::Text("FPS: %.0f", g_fps);
+    ImGui::Separator();
+    ImGui::Text("Camera Position:");
+    ImGui::Text("X: %.2f", main_camera.pos.x);
+    ImGui::Text("Y: %.2f", main_camera.pos.y);
+    ImGui::Text("Z: %.2f", main_camera.pos.z);
+    ImGui::Separator();
+    ImGui::Text("Yaw: %.2f", yaw);
+    ImGui::Text("Pitch: %.2f", pitch);
+
+    ImGui::End();
+
+    if (editMode)
+    {
+        ImGui::SetNextWindowPos(ImVec2(10, 180));
+        ImGui::SetNextWindowBgAlpha(0.4f);
+    
+        ImGui::Begin("Bone Inspector", nullptr,
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_AlwaysAutoResize);
+        
+        // ---- Bone List ----
+        ImGui::Text("Bone:");
+        ImGui::Separator();
+
+        if (selected_bone < 0)
+            selected_bone = 0;
+
+        std::string preview = "Select Bone";
+
+        if (selected_bone < joint_names.size())
+            preview = std::to_string(selected_bone) + " " + joint_names[selected_bone];
+
+        if (ImGui::BeginCombo("##bone_combo", preview.c_str()))
+        {
+            for (int i = 0; i < joint_count; i++)
+            {
+                bool is_selected = (selected_bone == i);
+            
+                std::string label;
+                if (i < joint_names.size())
+                    label = std::to_string(i) + " " + joint_names[i];
+                else
+                    label = std::to_string(i) + " (Unnamed)";
+            
+                if (ImGui::Selectable(label.c_str(), is_selected))
+                    selected_bone = i;
+            
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+        
+            ImGui::EndCombo();
+        }
+
+
+    
+        ImGui::Separator();
+        ImGui::Text("Selected Bone: %d", selected_bone);
+        ImGui::Separator();
+    
+        // ---- Extract transform ----
+        if (selected_bone != last_selected_bone)
+        {
+            decompose_bone_transform(
+                joint_matrices[selected_bone],
+                editorBonePosition,
+                editorBoneAxis,
+                editorBoneAngle
+            );
+        
+            last_selected_bone = selected_bone;
+        }
+        
+    
+        // ---- Display Position ----
+        ImGui::Text("Position:");
+        ImGui::Text("X: %.3f", editorBonePosition.x);
+        ImGui::Text("Y: %.3f", editorBonePosition.y);
+        ImGui::Text("Z: %.3f", editorBonePosition.z);
+    
+        ImGui::Separator();
+    
+        // ---- Display Rotation ----
+        ImGui::Text("Rotation:");
+        ImGui::SliderFloat("Angle", &editorBoneAngle, -180.0f, 180.0f);
+        ImGui::DragFloat3("Axis", &editorBoneAxis.x, 0.01f);
+
+        //ImGui::Text("Axis X: %.3f", editorBoneAxis.x);
+        //ImGui::Text("Axis Y: %.3f", editorBoneAxis.y);
+        //ImGui::Text("Axis Z: %.3f", editorBoneAxis.z);
+    
+        // Normalize axis to prevent weird scaling
+        editorBoneAxis = glm::normalize(editorBoneAxis);
+
+        // ---- WRITE BACK TO SKELETON ----
+        glm::mat4 translation =
+            glm::translate(glm::mat4(1.0f), editorBonePosition);
+
+        glm::mat4 rotation =
+            glm::rotate(
+                glm::mat4(1.0f),
+                glm::radians(editorBoneAngle),
+                editorBoneAxis
+            );
+        
+        joint_matrices[selected_bone] = translation * rotation;
+        
+        ImGui::End();
+    }
+    
+
+
     glUseProgram(shaderProgram);
 
     glm::mat4 view = main_camera.get_view();
@@ -391,6 +600,10 @@ void draw_scene() {
         glBindVertexArray(mesh.vao);
         glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, 0);
     }
+
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 }
 
 GLuint upload_texture_bytes(const unsigned char* data, int size) {
@@ -444,4 +657,33 @@ void update_morph_slot(int mesh_index, int slot_index, const float* new_data, si
     //glEnableVertexAttribArray(location);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+}
+
+#include <unordered_map>
+
+static std::unordered_map<int, bool> previousKeyState;
+
+bool is_key_pressed(int key) {
+    if (!window) return false;
+
+    bool current = glfwGetKey(window, key) == GLFW_PRESS;
+    bool pressed = current && !previousKeyState[key];
+
+    previousKeyState[key] = current;
+    return pressed;
+}
+
+bool is_key_down(int key) {
+    if (!window) return false;
+    return glfwGetKey(window, key) == GLFW_PRESS;
+}
+
+void set_joint_count(int count)
+{
+    joint_count = count;
+}
+
+void set_joint_names(const std::vector<std::string>& names)
+{
+    joint_names = names;
 }

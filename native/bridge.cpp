@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 #include <vector>
 #include <string>
 #include "renderer.hpp"
@@ -10,6 +11,10 @@ namespace py = pybind11;
 
 // Forward declarations
 extern void set_current_texture(GLuint tex_id);
+
+//bool is_key_down(int key);
+//bool is_key_pressed(int key);  // edge trigger
+
 
 void upload_mesh_to_gpu(
     py::array_t<float> vertices,
@@ -82,6 +87,11 @@ PYBIND11_MODULE(greko_native, m) {
     m.def("should_close", &should_close);
     m.def("terminate", &terminate);
     m.def("draw_scene", &draw_scene);
+    m.def("is_key_down", &is_key_down);
+    m.def("is_key_pressed", &is_key_pressed);
+    m.def("set_joint_count", &set_joint_count, "Set the number of joints in the skeleton");
+    m.def("set_joint_names", &set_joint_names, "Set the list of joint names from the skeleton");
+
     
     
     // *** Texture upload ***
@@ -130,5 +140,14 @@ PYBIND11_MODULE(greko_native, m) {
         float newZ = glm::sin(rad) * (main_camera.target.x - main_camera.pos.x) + 
                      glm::cos(rad) * (main_camera.target.z - main_camera.pos.z);
         main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ);
+    });
+    m.def("get_editor_rotation", []() {
+        return py::make_tuple(
+            selected_bone,
+            editorBoneAxis.x,
+            editorBoneAxis.y,
+            editorBoneAxis.z,
+            editorBoneAngle
+        );
     });
 }

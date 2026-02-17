@@ -1,16 +1,18 @@
-from datetime import time
+#from datetime import time
 import time as timen
 import math
 import sys
 import os
 import numpy as np
 
+#from core import skeleton
 import core.greko_native as gn
 
 from core.glb_parser import parse_glb
 from core.skeleton import Skeleton
 from core.behaviours_manager import BehaviorManager
 from core.mesh_data import package_mesh
+from core.animator import Animator, quaternion_from_axis_angle
 
 def run_engine():
     # Initialize renderer
@@ -31,6 +33,25 @@ def run_engine():
     print("🦴 Building Skeleton...")
     skeleton = Skeleton(parsed_data.json, parsed_data.bin_blob)
     print("Joint count:", len(skeleton.joint_nodes))
+
+    animator = Animator(skeleton)
+    HEAD_INDEX = None
+    gn.set_joint_names(skeleton.joint_names)
+    gn.set_joint_count(len(skeleton.joint_nodes))
+
+
+
+    for i, name in enumerate(skeleton.joint_names):
+        #name = skeleton.nodes[node_index].get("name", "")
+        if "Head" in name:
+            HEAD_INDEX = i
+            print("Found Head at index:", i, "| Name:", name)
+            break
+
+    if HEAD_INDEX is None:
+        print("❌ Head bone not found")
+        sys.exit(1)
+
 
     
     # FLAG: Render Parts List
@@ -148,30 +169,47 @@ def run_engine():
 
     manager.trigger_mouth_sequence("test.gpseq")
 
+    last_time = timen.time()
+    
+    animator.play_clip("hi")
     
     # Main Loop remains the same
     while not gn.should_close():
         gn.clear_screen()
 
         # --- Procedural Head Sway Test ---
-        t = timen.time()
-        angle = math.sin(t) * 0.6  # smooth left-right
-        
-        c = math.cos(angle)
-        s = math.sin(angle)
+        #t = timen.time()
+        #angle = math.sin(t) * 0.6
 
-        HEAD_INDEX = 18
+        #HEAD_INDEX = 18
 
-        bind = skeleton.bind_locals[HEAD_INDEX].copy()
+        #axis = np.array([0, 1, 0], dtype=np.float32)
+        #animator.rotate_bone("J_Bip_C_Head", axis, angle)
         
-        rot3 = np.array([
-                [ c, 0,  s],
-                [ 0, 1,  0],
-                [-s, 0,  c]
-            ], dtype=np.float32)
         
-        bind[:3, :3] = rot3 @ bind[:3, :3]
-        skeleton.local_matrices[HEAD_INDEX] = bind # Apply rotation on top of bind pose
+        # Apply rotation relative to bind pose
+        #skeleton.local_rotation[HEAD_INDEX] = quat
+
+        current_time = timen.time()
+        dt = current_time - last_time
+        last_time = current_time
+        
+        # If editor mode is active, override animator
+        if gn.is_key_down(290):  # Example: F1 (GLFW_KEY_F1 = 290)
+            animator.active_clip = None  # stop animation
+            
+            idx, ax, ay, az, angle = gn.get_editor_rotation()
+        
+            axis = np.array([ax, ay, az], dtype=np.float32)
+        
+            if np.linalg.norm(axis) > 0.0001:
+                quat = quaternion_from_axis_angle(axis, math.radians(angle))
+                skeleton.local_rotation[idx] = quat
+        else:
+            animator.update(dt)
+        
+        
+
         
         skeleton.update()
         

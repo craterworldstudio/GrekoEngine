@@ -9,6 +9,9 @@
 extern unsigned int vao;
 //extern unsigned int current_index_count;
 extern unsigned int g_texture;
+extern int selected_bone;
+extern glm::vec3 editorBoneAxis;
+extern float editorBoneAngle;
 
 // Camera
 extern Camera main_camera;
@@ -47,3 +50,8 @@ GLuint upload_texture_bytes(const unsigned char* data, int size);
 void set_current_texture(GLuint tex_id);
 void set_morph_weights(float w0, float w1, float w2, float w3);
 void update_morph_slot(int mesh_index, int slot_index, const float* new_data, size_t data_size);
+
+bool is_key_down(int key);
+bool is_key_pressed(int key);
+void set_joint_count(int count);
+void set_joint_names(const std::vector<std::string>& names);

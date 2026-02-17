@@ -97,7 +97,7 @@ def parse_glb(path: str | Path) -> ParsedGLB:
     asset = json_chunk.get("asset", {})
     print("[GLB] Generator:", asset.get("generator"))
     print("[GLB] glTF version:", asset.get("version"))
-    print("[GLB] Extensions used:", json_chunk.get("extensionsUsed", []))
+    #print("[GLB] Extensions used:", json_chunk.get("extensionsUsed", []))
 
     if bin_chunk:
         print("[GLB] BIN chunk size:", len(bin_chunk))
