@@ -1,13 +1,27 @@
 from unicodedata import name
 import numpy as np
 import math
+import core.greko_native as gn
 
 def quaternion_from_axis_angle(axis, angle):
-    axis = axis / np.linalg.norm(axis)
+    norm = np.linalg.norm(axis)
+
+    if norm < 1e-8:
+        return np.array([0, 0, 0, 1], dtype=np.float32)
+
+    axis = axis / norm
+
     s = math.sin(angle / 2.0)
     x, y, z = axis * s
     w = math.cos(angle / 2.0)
-    return np.array([x, y, z, w], dtype=np.float32)
+
+    q = np.array([x, y, z, w], dtype=np.float32)
+
+    # Normalize quaternion to prevent drift
+    q /= np.linalg.norm(q)
+
+    return q
+
 
 def ease_in_out(t):
     return t * t * (3 - 2 * t)
@@ -40,7 +54,11 @@ class Animator:
 
         idx = self.bones[bone_name]
         quat = quaternion_from_axis_angle(axis, angle)
-        self.skeleton.local_rotation[idx] = quat
+        
+        # FLAG: Native Call
+        # Instead of storing it in a Python list, send it straight to C++
+        # We pass (index, x, y, z, w)
+        gn.set_bone_local_rotation(idx, float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3]))
         
     def play_clip(self, name):
         self.active_clip = name

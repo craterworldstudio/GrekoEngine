@@ -10,8 +10,6 @@ extern unsigned int vao;
 //extern unsigned int current_index_count;
 extern unsigned int g_texture;
 extern int selected_bone;
-extern glm::vec3 editorBoneAxis;
-extern float editorBoneAngle;
 
 // Camera
 extern Camera main_camera;

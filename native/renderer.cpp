@@ -52,10 +52,6 @@ double g_fps = 0.0;
 
 int selected_bone = 0;
 
-glm::vec3 editorBonePosition = glm::vec3(0.0f);
-glm::vec3 editorBoneAxis = glm::vec3(1, 0, 0);
-float editorBoneAngle        = 0.0f;
-
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -364,7 +360,7 @@ void add_mesh_to_scene(
     glGenBuffers(1, &mesh.vbo_joints);
     glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo_joints);
     glBufferData(GL_ARRAY_BUFFER, j_size * sizeof(uint32_t), joints, GL_STATIC_DRAW);
-    glVertexAttribIPointer(3, 4, GL_INT, 0, (void*)0);
+    glVertexAttribIPointer(3, 4, GL_UNSIGNED_INT, 0, (void*)0);
     glEnableVertexAttribArray(3);
 
     // Weights (location 4)
@@ -398,37 +394,6 @@ void add_mesh_to_scene(
     //return scene_meshes.size() - 1;
 }
 
-void decompose_bone_transform(
-    const glm::mat4& mat,
-    glm::vec3& outPos,
-    glm::vec3& outAxis,
-    float& outAngleDeg)
-{
-    // Extract position
-    outPos = glm::vec3(mat[3]);
-
-    // Extract rotation (remove translation)
-    glm::mat3 rotMat = glm::mat3(mat);
-
-    // Convert to quaternion
-    glm::quat q = glm::quat_cast(rotMat);
-
-    // Convert to axis-angle
-    float angleRad = 2.0f * acos(q.w);
-    float s = sqrt(1.0f - q.w * q.w);
-
-    if (s < 0.001f)
-    {
-        outAxis = glm::vec3(1, 0, 0); // fallback axis
-    }
-    else
-    {
-        outAxis = glm::vec3(q.x / s, q.y / s, q.z / s);
-    }
-
-    outAngleDeg = glm::degrees(angleRad);
-}
-
 
 // One call from Python draws EVERYTHING stored in the vector.
 void draw_scene() {
@@ -458,107 +423,65 @@ void draw_scene() {
 
     ImGui::End();
 
-    if (editMode)
-    {
-        ImGui::SetNextWindowPos(ImVec2(10, 180));
-        ImGui::SetNextWindowBgAlpha(0.4f);
-    
-        ImGui::Begin("Bone Inspector", nullptr,
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_AlwaysAutoResize);
-        
-        // ---- Bone List ----
-        ImGui::Text("Bone:");
-        ImGui::Separator();
+    if (editMode) {
+        ImGui::Begin("Bone Inspector");
 
-        if (selected_bone < 0)
-            selected_bone = 0;
+        // 1. Bone Selection Dropdown
+        std::string preview = (selected_bone >= 0 && selected_bone < joint_names.size()) ? 
+                              joint_names[selected_bone] : "Select Bone";
 
-        std::string preview = "Select Bone";
-
-        if (selected_bone < joint_names.size())
-            preview = std::to_string(selected_bone) + " " + joint_names[selected_bone];
-
-        if (ImGui::BeginCombo("##bone_combo", preview.c_str()))
-        {
-            for (int i = 0; i < joint_count; i++)
-            {
-                bool is_selected = (selected_bone == i);
-            
-                std::string label;
-                if (i < joint_names.size())
-                    label = std::to_string(i) + " " + joint_names[i];
-                else
-                    label = std::to_string(i) + " (Unnamed)";
-            
-                if (ImGui::Selectable(label.c_str(), is_selected))
-                    selected_bone = i;
-            
-                if (is_selected)
-                    ImGui::SetItemDefaultFocus();
+        if (ImGui::BeginCombo("Bone##Selector", preview.c_str())) {
+            for (int i = 0; i < skeleton_bones.size(); i++) {
+                std::string unique_name = skeleton_bones[i].name + "##" + std::to_string(i);
+                if (ImGui::Selectable(unique_name.c_str(), selected_bone == i)) {
+                    selected_bone = i;  
+                }
             }
-        
             ImGui::EndCombo();
         }
 
+        ImGui::Separator();
 
-    
-        ImGui::Separator();
-        ImGui::Text("Selected Bone: %d", selected_bone);
-        ImGui::Separator();
-    
-        // ---- Extract transform ----
-        if (selected_bone != last_selected_bone)
-        {
-            decompose_bone_transform(
-                joint_matrices[selected_bone],
-                editorBonePosition,
-                editorBoneAxis,
-                editorBoneAngle
-            );
+        if (selected_bone >= 0 && selected_bone < (int)skeleton_bones.size()) {
+            Bone& bone = skeleton_bones[selected_bone];
+
+            // FLAG: ImGui ID Stack
+            // This ensures that "Position" for Bone 0 is different from "Position" for Bone 1
+            ImGui::PushID(selected_bone);
         
-            last_selected_bone = selected_bone;
+            // 2. Edit Local Position
+            if (ImGui::DragFloat3("Position", &bone.local_pos.x, 0.01f)) {
+                update_skeleton_hierarchy();
+            }
+        
+            // 3. Edit Local Rotation
+            static glm::vec3 euler = glm::vec3(0.0f);
+            if (last_selected_bone != selected_bone) {
+                euler = glm::degrees(glm::eulerAngles(bone.local_rot));
+                last_selected_bone = selected_bone;
+            }
+        
+            if (ImGui::DragFloat3("Rotation", &euler.x, 0.5f)) {
+                bone.local_rot = glm::quat(glm::radians(euler));
+                update_skeleton_hierarchy();
+            }
+        
+            // 4. Edit Local Scale
+            if (ImGui::DragFloat3("Scale", &bone.local_scale.x, 0.01f)) {
+                update_skeleton_hierarchy();
+            }
+        
+            if (ImGui::Button("Reset Transform")) {
+                bone.local_pos = glm::vec3(0.0f);
+                bone.local_rot = glm::quat(1,0,0,0);
+                bone.local_scale = glm::vec3(1.0f);
+                update_skeleton_hierarchy();
+            }
+
+            ImGui::PopID(); // Always pop what you push!
         }
-        
-    
-        // ---- Display Position ----
-        ImGui::Text("Position:");
-        ImGui::Text("X: %.3f", editorBonePosition.x);
-        ImGui::Text("Y: %.3f", editorBonePosition.y);
-        ImGui::Text("Z: %.3f", editorBonePosition.z);
-    
-        ImGui::Separator();
-    
-        // ---- Display Rotation ----
-        ImGui::Text("Rotation:");
-        ImGui::SliderFloat("Angle", &editorBoneAngle, -180.0f, 180.0f);
-        ImGui::DragFloat3("Axis", &editorBoneAxis.x, 0.01f);
-
-        //ImGui::Text("Axis X: %.3f", editorBoneAxis.x);
-        //ImGui::Text("Axis Y: %.3f", editorBoneAxis.y);
-        //ImGui::Text("Axis Z: %.3f", editorBoneAxis.z);
-    
-        // Normalize axis to prevent weird scaling
-        editorBoneAxis = glm::normalize(editorBoneAxis);
-
-        // ---- WRITE BACK TO SKELETON ----
-        glm::mat4 translation =
-            glm::translate(glm::mat4(1.0f), editorBonePosition);
-
-        glm::mat4 rotation =
-            glm::rotate(
-                glm::mat4(1.0f),
-                glm::radians(editorBoneAngle),
-                editorBoneAxis
-            );
-        
-        joint_matrices[selected_bone] = translation * rotation;
-        
         ImGui::End();
     }
-    
 
 
     glUseProgram(shaderProgram);
@@ -577,7 +500,7 @@ void draw_scene() {
 
     GLint jointLoc = glGetUniformLocation(shaderProgram, "uJointMatrices");
     if (jointLoc != -1) {
-        glUniformMatrix4fv(jointLoc, 256, GL_FALSE, glm::value_ptr(joint_matrices[0]));
+        glUniformMatrix4fv(jointLoc, joint_count, GL_FALSE, glm::value_ptr(joint_matrices[0]));
     }
 
     for (const auto& mesh : scene_meshes) {
@@ -685,5 +608,17 @@ void set_joint_count(int count)
 
 void set_joint_names(const std::vector<std::string>& names)
 {
+    // 1. Update the global list (used for the dropdown preview text)
     joint_names = names;
+
+    // 2. FLAG: The Internal Sync
+    // We need to push these names into the actual Bone structs 
+    // so the Inspector loop can find them.
+    for (size_t i = 0; i < names.size(); i++) {
+        if (i < skeleton_bones.size()) {
+            skeleton_bones[i].name = names[i];
+        }
+    }
+    
+    std::cout << "🦴 Renderer Sync: Applied names to " << names.size() << " bones." << std::endl;
 }

@@ -141,13 +141,57 @@ PYBIND11_MODULE(greko_native, m) {
                      glm::cos(rad) * (main_camera.target.z - main_camera.pos.z);
         main_camera.target = main_camera.pos + glm::vec3(newX, 0, newZ);
     });
-    m.def("get_editor_rotation", []() {
-        return py::make_tuple(
-            selected_bone,
-            editorBoneAxis.x,
-            editorBoneAxis.y,
-            editorBoneAxis.z,
-            editorBoneAngle
-        );
+
+   // In bridge.cpp
+
+    m.def("setup_cpp_skeleton", [](int count, std::vector<int> parents, 
+                                   py::array_t<float> ibms,
+                                   py::array_t<float> rest_pos,
+                                   py::array_t<float> rest_rot,
+                                   py::array_t<float> rest_scale) {
+        skeleton_bones.clear();
+        auto r_ibm = ibms.unchecked<2>();
+        auto r_pos = rest_pos.unchecked<2>();
+        auto r_rot = rest_rot.unchecked<2>();
+        auto r_scale = rest_scale.unchecked<2>();
+                                
+        for (int i = 0; i < count; i++) {
+            Bone b;
+            b.parent_index = parents[i];
+
+            // 1. Load Inverse Bind Matrix
+            float mat_data[16];
+            for(int j=0; j<16; j++) mat_data[j] = r_ibm(i, j);
+            b.inverse_bind_matrix = glm::make_mat4(mat_data);
+            
+            // 2. FLAG: Load the Rest Pose
+            // This prevents the "Collapsed Soup" at (0,0,0)
+            b.local_pos = glm::vec3(r_pos(i, 0), r_pos(i, 1), r_pos(i, 2));
+            b.local_rot = glm::quat(r_rot(i, 3), r_rot(i, 0), r_rot(i, 1), r_rot(i, 2)); // W, X, Y, Z
+            b.local_scale = glm::vec3(r_scale(i, 0), r_scale(i, 1), r_scale(i, 2));
+
+            skeleton_bones.push_back(b);
+        }
+
+        // Calculate the initial world positions immediately
+        update_skeleton_hierarchy();
+    });
+    
+    m.def("set_bone_local_rotation", [](int index, float x, float y, float z, float w) {
+        if(index >= 0 && index < (int)skeleton_bones.size()) {
+            // We use this specific constructor to avoid W-XYZ confusion
+            skeleton_bones[index].local_rot = glm::quat(w, x, y, z);
+
+            // FLAG: The Trigger
+            // After changing a bone, the whole family tree needs to move.
+            update_skeleton_hierarchy(); 
+        }
+    });
+
+    m.def("set_bone_local_position", [](int index, float x, float y, float z) {
+        if(index >= 0 && index < (int)skeleton_bones.size()) {
+            skeleton_bones[index].local_pos = glm::vec3(x, y, z);
+            update_skeleton_hierarchy();
+        }
     });
 }

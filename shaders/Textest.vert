@@ -12,8 +12,8 @@ layout (location = 4) in vec4 aWeights;
 
 layout (location = 5) in vec3 aMorph0; // Blink
 layout (location = 6) in vec3 aMorph1; // Breath/Surprise
-layout (location = 7) in vec3 aMorph2; // Mouth A
-layout (location = 8) in vec3 aMorph3; // Mouth I
+layout (location = 7) in vec3 aMorph2; // Mouth Phenomes
+layout (location = 8) in vec3 aMorph3; // Buffer
 
 // ==========================
 // Uniforms
