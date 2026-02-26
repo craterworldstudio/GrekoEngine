@@ -432,7 +432,7 @@ void draw_scene() {
 
         if (ImGui::BeginCombo("Bone##Selector", preview.c_str())) {
             for (int i = 0; i < skeleton_bones.size(); i++) {
-                std::string unique_name = skeleton_bones[i].name + "##" + std::to_string(i);
+                std::string unique_name = std::to_string(i) + " " + skeleton_bones[i].name + "##" + std::to_string(i);
                 if (ImGui::Selectable(unique_name.c_str(), selected_bone == i)) {
                     selected_bone = i;  
                 }

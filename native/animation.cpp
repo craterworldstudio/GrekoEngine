@@ -56,3 +56,13 @@ void update_joints_from_buffer(const float* data, int count) {
         joint_matrices[i] = glm::make_mat4(&data[i * 16]);
     }
 }
+
+void reset_to_bind_pose() {
+    for (auto& bone : skeleton_bones) {
+        bone.local_pos   = bone.bind_pos;
+        bone.local_rot   = bone.bind_rot;
+        bone.local_scale = bone.bind_scale;
+    }
+
+    update_skeleton_hierarchy();
+}

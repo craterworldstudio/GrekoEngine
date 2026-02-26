@@ -21,6 +21,7 @@ clang++ -O3 -shared -std=c++17 -fPIC \
     native/bridge.cpp \
     native/renderer.cpp \
     native/animation.cpp \
+    native/lookAt.cpp \
     native/texture_loader.cpp \
     native/imgui/imgui.cpp \
     native/imgui/imgui_draw.cpp \
@@ -34,7 +35,7 @@ clang++ -O3 -shared -std=c++17 -fPIC \
     -I./native/imgui \
     -I./native/imgui/backends \
     -o core/greko_native$PY_SUFFIX \
-    -lGL -lglfw -ldl
+    -lGL -lglfw -ldl -DGLM_ENABLE_EXPERIMENTAL
 
 
 # -------------------------------

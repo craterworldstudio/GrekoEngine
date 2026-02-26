@@ -5,6 +5,7 @@
 #include <string>
 #include "renderer.hpp"
 #include "animation.hpp"
+#include "lookAt.hpp"
 #include <iostream>
 
 namespace py = pybind11;
@@ -127,6 +128,14 @@ PYBIND11_MODULE(greko_native, m) {
     m.def("set_camera_target", [](float x, float y, float z) {
         main_camera.target = glm::vec3(x, y, z);
     });
+
+    m.def("get_camera_position", []() {
+        return std::vector<float>{
+            main_camera.pos.x,
+            main_camera.pos.y,
+            main_camera.pos.z
+        };
+    });
     
     m.def("move_camera", [](float x, float y, float z) {
         main_camera.pos += glm::vec3(x, y, z);
@@ -166,9 +175,13 @@ PYBIND11_MODULE(greko_native, m) {
             
             // 2. FLAG: Load the Rest Pose
             // This prevents the "Collapsed Soup" at (0,0,0)
-            b.local_pos = glm::vec3(r_pos(i, 0), r_pos(i, 1), r_pos(i, 2));
-            b.local_rot = glm::quat(r_rot(i, 3), r_rot(i, 0), r_rot(i, 1), r_rot(i, 2)); // W, X, Y, Z
-            b.local_scale = glm::vec3(r_scale(i, 0), r_scale(i, 1), r_scale(i, 2));
+            b.bind_pos = glm::vec3(r_pos(i, 0), r_pos(i, 1), r_pos(i, 2));
+            b.bind_rot = glm::quat(r_rot(i, 3), r_rot(i, 0), r_rot(i, 1), r_rot(i, 2)); // W, X, Y, Z
+            b.bind_scale = glm::vec3(r_scale(i, 0), r_scale(i, 1), r_scale(i, 2));
+
+            b.local_pos = b.bind_pos ;
+            b.local_rot = b.bind_rot ;
+            b.local_scale= b.bind_scale ;
 
             skeleton_bones.push_back(b);
         }
@@ -194,4 +207,7 @@ PYBIND11_MODULE(greko_native, m) {
             update_skeleton_hierarchy();
         }
     });
+
+    m.def("apply_look_at", &apply_look_at);
+    m.def("reset_to_bind_pose", &reset_to_bind_pose);
 }

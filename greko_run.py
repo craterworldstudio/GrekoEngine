@@ -10,7 +10,7 @@ import core.greko_native as gn
 
 from core.glb_parser import parse_glb
 from core.skeleton import Skeleton
-from core.behaviours_manager import BehaviorManager
+from core.behaviours_manager import MorphBehaviorManager, SkeletonBehaviorManager
 from core.mesh_data import package_mesh
 from core.animator import Animator, quaternion_from_axis_angle
 
@@ -40,20 +40,7 @@ def run_engine():
     gn.set_joint_count(len(skeleton.joint_nodes))
 
     animator = Animator(skeleton)
-    HEAD_INDEX = None
-
-
-
-    for i, name in enumerate(skeleton.joint_names):
-        #name = skeleton.nodes[node_index].get("name", "")
-        if "Head" in name:
-            HEAD_INDEX = i
-            print("Found Head at index:", i, "| Name:", name)
-            break
-
-    if HEAD_INDEX is None:
-        print("❌ Head bone not found")
-        sys.exit(1)
+    
 
 
     
@@ -153,12 +140,14 @@ def run_engine():
             part["tex_id"]
         )
 
-    manager = BehaviorManager()
-    manager.load_behaviors()
+    Mmanager = MorphBehaviorManager()
+    Smanager = SkeletonBehaviorManager(skeleton)
+    Mmanager.load_behaviors()
+    Smanager.load_behaviors()
     # Pass THIS index to the manager/sequencer
-    manager.face_mesh_indices = face_mesh_indices # Set it here
-    manager.inject_morph_library(face_morph_library)
-    manager.trigger_mouth_sequence("test.gpseq")
+    Mmanager.face_mesh_indices = face_mesh_indices # Set it here
+    Mmanager.inject_morph_library(face_morph_library)
+    Mmanager.trigger_mouth_sequence("test.gpseq")
     last_time = timen.time()
     animator.play_clip("hi")
     
@@ -176,12 +165,14 @@ def run_engine():
             
         else:
             animator.update(dt)
+
+        target = gn.get_camera_position()
         
         # REMOVED: skeleton.update()
         # REMOVED: joint_buffer = skeleton.get_skinning_buffer()
         # REMOVED: gn.update_joints(joint_buffer)
-
-        manager.update_all(gn)
+        Smanager.update_all(gn, target)
+        Mmanager.update_all(gn)
         gn.draw_scene() 
         gn.swap_buffers()
 

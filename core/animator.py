@@ -34,6 +34,7 @@ class Animator:
         self.active_clip = None
         self.clip_time = 0.0
 
+        self.pose_buffer = {}
 
         # cache bone indices by name
         self.bones = {}
@@ -41,11 +42,25 @@ class Animator:
             name = skeleton.nodes[node_index].get("name", "")
             self.bones[name] = i
 
+    def commit_pose(self):
+        for idx, quat in self.pose_buffer.items():
+            gn.set_bone_local_rotation(
+                idx,
+                float(quat[0]),
+                float(quat[1]),
+                float(quat[2]),
+                float(quat[3])
+            )
+        self.pose_buffer.clear()
+
     def update(self, dt):
         self.time += dt
 
-        if self.active_clip == "hi":
-            self.play_hi(dt)
+        #if self.active_clip == "hi":
+        #    self.play_hi(dt)
+        gn.reset_to_bind_pose()
+
+        self.commit_pose()
 
 
     def rotate_bone(self, bone_name, axis, angle):
@@ -58,12 +73,14 @@ class Animator:
         # FLAG: Native Call
         # Instead of storing it in a Python list, send it straight to C++
         # We pass (index, x, y, z, w)
-        gn.set_bone_local_rotation(idx, float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3]))
+        self.pose_buffer[idx] = quat
+        #gn.set_bone_local_rotation(idx, float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3]))
         
     def play_clip(self, name):
         self.active_clip = name
         self.clip_time = 0.0
 
+    #Test for Arm Rotation and SKeleton System
     def play_hi(self, dt):
         self.clip_time += dt
 
