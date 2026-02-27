@@ -13,6 +13,8 @@ extern int selected_bone;
 
 // Camera
 extern Camera main_camera;
+extern glm::vec3 cameraFront;
+extern float yaw, pitch;
 
 struct GPUMesh {
     GLuint vao;

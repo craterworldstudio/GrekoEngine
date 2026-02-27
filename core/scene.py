@@ -1,7 +1,12 @@
 class UpdateContext:
-    def __init__(self, gn=None, skeleton=None, animator=None, camera_position=None, target=None):
+    def __init__(
+            self, 
+            gn=None, 
+            skeleton=None, 
+            animator=None,
+            target=None):
+        
         self.gn = gn
-        self.camera_position = camera_position
         self.target = target
         self.animator = animator
         self.skeleton = skeleton

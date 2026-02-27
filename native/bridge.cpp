@@ -110,6 +110,8 @@ PYBIND11_MODULE(greko_native, m) {
     }, py::arg("data"), py::arg("srgb") = true,
        "Upload texture from bytes and set as current");
 
+    m.def("set_current_texture", &set_current_texture, "Set the active texture ID for rendering");
+
     m.def("update_joints", [](py::array_t<float> matrices) {
         auto r = matrices.unchecked<1>();
         update_joints_from_buffer(r.data(0), (int)r.size());
@@ -137,11 +139,35 @@ PYBIND11_MODULE(greko_native, m) {
         };
     });
     
+    m.def("get_camera_target", []() {
+        return std::vector<float>{
+            main_camera.target.x,
+            main_camera.target.y,
+            main_camera.target.z
+        };
+    });
+
+    m.def("get_camera_front", []() {
+        return std::vector<float>{
+            cameraFront.x,
+            cameraFront.y,
+            cameraFront.z
+        };
+    });
+
+    m.def("get_camera_yaw", []() {
+        return yaw;
+    });
+
+    m.def("get_camera_pitch", []() {
+        return pitch;
+    });
+
     m.def("move_camera", [](float x, float y, float z) {
         main_camera.pos += glm::vec3(x, y, z);
         main_camera.target += glm::vec3(x, y, z); 
     });
-    m.def("set_current_texture", &set_current_texture, "Set the active texture ID for rendering");
+
     m.def("rotate_camera", [](float angle_deg) {
         float rad = glm::radians(angle_deg);
         float newX = glm::cos(rad) * (main_camera.target.x - main_camera.pos.x) - 

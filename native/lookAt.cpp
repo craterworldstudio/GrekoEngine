@@ -1,6 +1,5 @@
 #include "lookAt.hpp"
 #include "animation.hpp"
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
 void apply_look_at(int bone_index, float tx, float ty, float tz) {

@@ -8,8 +8,8 @@ Roadmap until idk i have added everything
 > Add Import Support for VRMA files. and incorporate them into the engine.
 
 🔥 STAGE 1 (Foundation)
-Scene/Entity Manager
-Component structure
+Scene/Entity Manager - DONE
+Component structure - DONE
 GUI selection of entities
 
 🔥 STAGE 2 (Character Intelligence)

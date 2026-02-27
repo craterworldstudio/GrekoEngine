@@ -17,6 +17,7 @@ from core.animator import Animator
 from core.scene import Scene, UpdateContext
 from core.entity import Entity
 from core.components.transform import Transform
+from core.components.camera import CameraComponent
 
 class Engine:
 
@@ -167,7 +168,12 @@ class Engine:
 
         morph.face_mesh_indices = self.face_mesh_indices # type: ignore
         morph.inject_morph_library(self.face_morph_library) # type: ignore
+        
+        self.camera_entity = Entity("MainCamera")
+        self.camera_entity.add_component("transform", Transform())
+        self.camera_entity.add_component("Camera", CameraComponent())
 
+        self.scene.add(self.camera_entity)
         # Pass THIS index to the manager/sequencer
       
         
@@ -181,6 +187,8 @@ class Engine:
         animator = self.model_entity.get("animator")
         #morph.trigger_mouth_sequence("test.gpseq")
         self.context.animator = animator
+        camera_comp = self.camera_entity.get("Camera")
+
         while not gn.should_close():
             gn.clear_screen()
 
@@ -188,14 +196,15 @@ class Engine:
             dt = current_time - last_time
             last_time = current_time
 
+            self.context.target = camera_comp.position  # type: ignore
+
+
             #if gn.is_key_down(290):  # F1 Editor Mode
             #    animator.active_clip = None  # type: ignore
 #
             #else:
             #    animator.update(dt, self.context) # type: ignore
 
-            self.context.camera_position = gn.get_camera_position()
-            self.context.target = self.context.camera_position
 
             self.scene.update(dt, self.context)
             gn.draw_scene() 
