@@ -1,0 +1,32 @@
+Roadmap until idk i have added everything
+
+> Add a Scene/Entity Manager for the engine with additional function which returns all the objects loads in the scene (additional cubes, our VRM model and the camera.)
+> Add more detail to our lookAt system as currently by incorporating Eye Tracking and adding clamps to both.
+> Change LookAt/track to track objects with eyes unless they are close to eye clamp in which case move the head until it is at the center of the eye. (maybe incorporate the spine) 
+> Add a GUI menu to select Current Track Object from Entity List.
+> Improve or restructure the Animation Buffer if needed
+> Add Import Support for VRMA files. and incorporate them into the engine.
+
+🔥 STAGE 1 (Foundation)
+Scene/Entity Manager
+Component structure
+GUI selection of entities
+
+🔥 STAGE 2 (Character Intelligence)
+Improve LookAt
+Eye clamps
+Head/Eye cooperation
+Optional spine weight
+
+🔥 STAGE 3 (Animation System Growth)
+Improve Animation Buffer
+Introduce layered blending
+Move LookAt to be additive
+
+🔥 STAGE 4 (Content Support)
+VRMA parsing
+Clip playback
+Clip blending
+Additive clip system
+
+WOHOOOO

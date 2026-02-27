@@ -37,9 +37,10 @@ class SkeletonBehaviorManager:
                         instance.setup(self.skeleton, *args, **kwargs)
 
 
-    def update_all(self, animator, target):
+    def update(self, dt, context):
+        animator, target, gn = context.animator, context.target, context.gn
         for behavior in self.active_behaviors:
-            behavior.update(animator, target)
+            behavior.update(gn, animator, target)
 
 class MorphBehaviorManager:
     def __init__(self):
@@ -80,9 +81,9 @@ class MorphBehaviorManager:
 
 
 
-    def update_all(self, gn):
+    def update(self, dt, context):
         """Runs the logic for every behavior found"""
-
+        gn = context.gn
         current_weights = [0.0, 0.0, 0.0, 0.0]
 
         for behavior in self.active_behaviors:

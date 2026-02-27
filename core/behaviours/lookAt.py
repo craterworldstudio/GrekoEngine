@@ -17,7 +17,7 @@ class LookAt(SkeletonBehaviorBase):
         if self.head_index is None:
             print("⚠ Head bone not found — LookAt disabled ❌")
 
-    def update(self, gn, target):
+    def update(self, gn, animator, target):
         if self.head_index is None:
             return
 

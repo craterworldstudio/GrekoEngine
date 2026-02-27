@@ -53,9 +53,9 @@ class Animator:
             )
         self.pose_buffer.clear()
 
-    def update(self, dt):
+    def update(self, dt, context):
         self.time += dt
-
+        gn = context.gn
         #if self.active_clip == "hi":
         #    self.play_hi(dt)
         gn.reset_to_bind_pose()
