@@ -10,7 +10,7 @@ Roadmap until idk i have added everything
 🔥 STAGE 1 (Foundation)
 Scene/Entity Manager - DONE
 Component structure - DONE
-GUI selection of entities
+GUI selection of entities - DONE
 
 🔥 STAGE 2 (Character Intelligence)
 Improve LookAt
