@@ -4,6 +4,7 @@ class Entity:
         self.components = {}
 
     def add_component(self, name, component):
+        component.owner = self
         self.components[name] = component
 
     def get(self, name):

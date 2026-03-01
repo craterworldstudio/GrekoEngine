@@ -18,13 +18,13 @@ from core.scene import Scene, UpdateContext
 from core.entity import Entity
 from core.components.transform import Transform
 from core.components.camera import CameraComponent
+from core.components.mesh import MeshComponent
 
 class Engine:
 
     def setup_load(self): 
         vrm_path = "assets/kisayov2.vrm"
-        self.context = UpdateContext()
-        self.context.gn=gn
+        
         if not os.path.exists(vrm_path):
             print(f"❌ VRM not found: {vrm_path}")
             gn.terminate()
@@ -41,12 +41,11 @@ class Engine:
         gn.set_joint_names(self.skeleton.joint_names)
         gn.set_joint_count(len(self.skeleton.joint_nodes))
 
-
-        self.scene = Scene()
+        
         self.animator = Animator(self.skeleton)
         self.Mmanager = MorphBehaviorManager()
         self.Smanager = SkeletonBehaviorManager(self.skeleton)
-
+        
 
         # FLAG: Render Parts List
         # We store each mesh piece separately instead of combining them.
@@ -134,7 +133,8 @@ class Engine:
                 part["weights"], 
                 part["indices"],
                 upload_list,
-                part["tex_id"]
+                part["tex_id"],
+                self.scene.get_all().index(self.model_entity)
             )
 
     def init_entities(self):
@@ -142,11 +142,36 @@ class Engine:
         if gn.init_renderer(1280, 720) != 0:
             print("❌ Renderer init failed")
             sys.exit(1)
-
+        
+        self.context = UpdateContext()
+        self.context.gn=gn
+        self.scene = Scene(self.context)
+        self.context.scene = self.scene
 
         self.model_entity = Entity("Kisayo")
+        self.model_entity.add_component("transform", Transform())
+        self.model_entity.get("transform").position = np.array([3.0, 0.0, 0.0]) # type: ignore
+
+        self.scene.add(self.model_entity)
+
+        self.camera_entity = Entity("MainCamera")
+        self.camera_entity.add_component("transform", Transform())
+        self.camera_entity.add_component("Camera", CameraComponent())
+
+        self.scene.add(self.camera_entity)
+
+        cube_entity = Entity("TargetCube")
+        cube_entity.add_component("transform", Transform())
+        cube_entity.get("transform").position = np.array([1.0, 0.0, 0.0]) #type: ignore
+        cube_entity.get("transform").scale = np.array([1.0, 1.0, 1.0]) #type: ignore
+        cube_entity.add_component("mesh", MeshComponent("cube", size=1.0))
+        self.scene.add(cube_entity)
+
+        gn.set_entity_list([e.name for e in self.scene.get_all()])
+
+        
         self.setup_load()
-        self.transform = Transform()
+        
 
         self.model_entity.add_component("skeleton", self.skeleton)
         self.model_entity.add_component("animator", self.animator)
@@ -154,10 +179,7 @@ class Engine:
         self.model_entity.add_component("skeleton_manager", self.Smanager)
 
         
-        self.transform.position = np.array([2.0, 0.0, 0.0])
-        self.model_entity.add_component("transform", self.transform)
-
-        self.scene.add(self.model_entity)
+        
 
         morph = self.model_entity.get("morph_manager")
         skeletonM = self.model_entity.get("skeleton_manager")
@@ -169,18 +191,12 @@ class Engine:
         morph.face_mesh_indices = self.face_mesh_indices # type: ignore
         morph.inject_morph_library(self.face_morph_library) # type: ignore
         
-        self.camera_entity = Entity("MainCamera")
-        self.camera_entity.add_component("transform", Transform())
-        self.camera_entity.add_component("Camera", CameraComponent())
+        
 
-        self.scene.add(self.camera_entity)
-        # Pass THIS index to the manager/sequencer
-      
-        
+        #self.scene.update_list()
+        #gn.set_entity_list([e.name for e in self.scene.get_all()])
         #self.animator.play_clip("hi")
-        
-        # Main Loop remains the same
-        # Main Loop
+
 
     def gameloop(self):
         last_time = timen.time()
@@ -191,20 +207,19 @@ class Engine:
 
         while not gn.should_close():
             gn.clear_screen()
-
             current_time = timen.time()
             dt = current_time - last_time
             last_time = current_time
 
-            self.context.target = camera_comp.position  # type: ignore
-
+            selected = self.context.gn.get_selected_entity_index() # type: ignore
+            self.context.target_index = selected
+            #self.context.target_index = camera_comp.position  # type: ignore
 
             #if gn.is_key_down(290):  # F1 Editor Mode
             #    animator.active_clip = None  # type: ignore
 #
             #else:
             #    animator.update(dt, self.context) # type: ignore
-
 
             self.scene.update(dt, self.context)
             gn.draw_scene() 

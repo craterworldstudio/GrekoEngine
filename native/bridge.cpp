@@ -7,6 +7,8 @@
 #include "animation.hpp"
 #include "lookAt.hpp"
 #include <iostream>
+#include "gameObjectShapes/primitives.hpp"
+#include "scene_builder.hpp"
 
 namespace py = pybind11;
 
@@ -25,7 +27,8 @@ void upload_mesh_to_gpu(
     py::array_t<float> weights,
     py::array_t<uint32_t> indices,
     py::list morph_list, // FLAG: Changed to py::list for multiple arrays
-    int tex_id
+    int tex_id,
+    int entity_index
 ) {
     auto v_ptr = vertices.data();
     auto n_ptr = normals.data();
@@ -64,7 +67,8 @@ void upload_mesh_to_gpu(
         w_ptr, weights.size(), 
         i_ptr, indices.size(),
         m_ptrs, // Pass the vector
-        tex_id
+        tex_id,
+        entity_index
     );
 }
 
@@ -236,4 +240,49 @@ PYBIND11_MODULE(greko_native, m) {
 
     m.def("apply_look_at", &apply_look_at);
     m.def("reset_to_bind_pose", &reset_to_bind_pose);
+
+    m.def("set_entity_list", [](std::vector<std::string> names) {
+        entity_names = names;
+        
+        entity_world_matrices.clear();
+        for (size_t i = 0; i < names.size(); i++)
+            entity_world_matrices.push_back(glm::mat4(1.0f));
+    });
+
+    m.def("get_selected_entity_index", []() {
+        return selected_entity_index;
+    });
+
+    m.def("update_entity_transform", [](int index, py::array_t<float> mat) {
+        if (mat.size() != 16) throw std::runtime_error("Matrix must contain 16 floats");
+        auto r = mat.unchecked<1>();
+        update_entity_transform(index, r.data(0));
+    });
+
+    m.def("upload_shapes", [](py::list shape_list)
+    {
+        std::vector<ShapeDescriptor> shapes;
+
+        for (auto item : shape_list)
+        {
+            py::dict d = item.cast<py::dict>();
+        
+            ShapeDescriptor shape;
+            shape.type = d["type"].cast<std::string>();
+            shape.entity_index = d["entity"].cast<int>();
+        
+            if (shape.type == "cube")
+                shape.size = d["size"].cast<float>();
+        
+            if (shape.type == "sphere")
+            {
+                shape.radius = d["radius"].cast<float>();
+                shape.segments = d["segments"].cast<int>();
+            }
+        
+            shapes.push_back(shape);
+        }
+    
+        upload_shapes(shapes);
+    });
 }

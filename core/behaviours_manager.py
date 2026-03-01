@@ -38,9 +38,9 @@ class SkeletonBehaviorManager:
 
 
     def update(self, dt, context):
-        animator, target, gn = context.animator, context.target, context.gn
+        animator, target_index, gn = context.animator, context.target_index, context.gn
         for behavior in self.active_behaviors:
-            behavior.update(gn, animator, target)
+            behavior.update(gn, animator, target_index)
 
 class MorphBehaviorManager:
     def __init__(self):

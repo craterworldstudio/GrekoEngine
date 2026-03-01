@@ -15,6 +15,7 @@
 #include "renderer.hpp"
 #include "texture_loader.hpp"
 #include "animation.hpp"
+#include "scene_builder.hpp"
 
 // Define the global instance
 Camera main_camera;
@@ -51,6 +52,9 @@ bool editMode = false;
 double g_fps = 0.0;
 
 int selected_bone = 0;
+std::vector<std::string> entity_names;
+int selected_entity_index = 0;
+std::vector<glm::mat4> entity_world_matrices;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -322,7 +326,8 @@ void add_mesh_to_scene(
     const uint32_t* indices, size_t i_size,
     const std::vector<const float*>& morph_data_ptrs, // List of pointers
     //const std::vector<size_t>& morph_sizes,
-    int tex_id
+    int tex_id,
+    int entity_index
 ) {
 
     GPUMesh mesh;
@@ -390,6 +395,7 @@ void add_mesh_to_scene(
 
     mesh.index_count = (int)i_size;
     mesh.texture_id = (GLuint)tex_id;
+    mesh.entity_index = entity_index;
     scene_meshes.push_back(mesh);
     //return scene_meshes.size() - 1;
 }
@@ -397,12 +403,15 @@ void add_mesh_to_scene(
 
 // One call from Python draws EVERYTHING stored in the vector.
 void draw_scene() {
+    
+    build_pending_shapes();
+
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     // ---- DEBUG OVERLAY (Top-Left HUD Style) ----
-    ImGui::SetNextWindowPos(ImVec2(10, 10));
+    ImGui::SetNextWindowPos(ImVec2(0, 10));
     ImGui::SetNextWindowSize(ImVec2(140, 170));
     ImGui::SetNextWindowBgAlpha(0.35f);
     ImGui::Begin("Debug", nullptr,
@@ -424,7 +433,16 @@ void draw_scene() {
     ImGui::End();
 
     if (editMode) {
-        ImGui::Begin("Bone Inspector");
+        ImGui::SetNextWindowPos(ImVec2(0, 180));
+        ImGui::Begin("Bone Inspector", nullptr,
+        ImGuiWindowFlags_NoMove 
+        | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoCollapse 
+        //| ImGuiWindowFlags_AlwaysAutoResize
+        );
+        
+        ImGui::SetNextWindowSize(ImVec2(140, 170));
+        //ImGui::SetNextWindowBgAlpha(0.35f);
 
         // 1. Bone Selection Dropdown
         std::string preview = (selected_bone >= 0 && selected_bone < joint_names.size()) ? 
@@ -440,6 +458,24 @@ void draw_scene() {
             ImGui::EndCombo();
         }
 
+        if (ImGui::BeginCombo("Entities", 
+            entity_names.empty() ? "None" : entity_names[selected_entity_index].c_str()))
+        {
+            for (int i = 0; i < entity_names.size(); i++)
+            {
+                bool is_selected = (selected_entity_index == i);
+                if (ImGui::Selectable(entity_names[i].c_str(), is_selected))
+                {
+                    selected_entity_index = i;
+                    }
+            
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            
+            ImGui::EndCombo();
+        }
+        ImGui::Text("Track: %s", entity_names[selected_entity_index].c_str());
         ImGui::Separator();
 
         if (selected_bone >= 0 && selected_bone < (int)skeleton_bones.size()) {
@@ -488,12 +524,13 @@ void draw_scene() {
 
     glm::mat4 view = main_camera.get_view();
     glm::mat4 proj = main_camera.get_projection();
-    glm::mat4 model = glm::mat4(1.0f);
+    //glm::mat4 model = glm::mat4(1.0f);
+    //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));   
 
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-
+    
+    std::cout << "Meshes in scene: " << scene_meshes.size() << std::endl;
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &proj[0][0]);
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
@@ -502,8 +539,18 @@ void draw_scene() {
     if (jointLoc != -1) {
         glUniformMatrix4fv(jointLoc, joint_count, GL_FALSE, glm::value_ptr(joint_matrices[0]));
     }
-
+    GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
     for (const auto& mesh : scene_meshes) {
+        glm::mat4 model = glm::mat4(1.0f);
+
+        if (mesh.entity_index >= 0 && 
+            mesh.entity_index < entity_world_matrices.size())
+        {
+            model = entity_world_matrices[mesh.entity_index];
+        }
+        
+        glUniformMatrix4fv( modelLoc, 1, GL_FALSE, glm::value_ptr(model) );
+
         // FLAG: The Critical Texture Bind
         // We use mesh.texture_id (which Python sent) instead of a global variable.
         if (mesh.texture_id != 0) {
@@ -622,3 +669,11 @@ void set_joint_names(const std::vector<std::string>& names)
     
     std::cout << "🦴 Renderer Sync: Applied names to " << names.size() << " bones." << std::endl;
 }
+
+void update_entity_transform(int entity_index, const float* data)
+    {
+        if (entity_index < 0 || entity_index >= entity_world_matrices.size())
+            return;
+
+        entity_world_matrices[entity_index] = glm::transpose(glm::make_mat4(data));
+    }

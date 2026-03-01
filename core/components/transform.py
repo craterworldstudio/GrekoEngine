@@ -3,6 +3,7 @@ import math
 
 class Transform:
     def __init__(self):
+        self.owner = None
         self.position = np.zeros(3)
         self.rotation = np.zeros(3)  # Euler XYZ (radians)
         self.scale = np.ones(3)
@@ -39,3 +40,10 @@ class Transform:
         T[:3, 3] = [tx, ty, tz]
 
         self.world_matrix = T @ Rz @ Ry @ Rx @ S
+
+        print("Entity:", self.owner.name) #type: ignore
+        print("Position:", self.position) #type: ignore
+        print("Matrix:\n", self.world_matrix)
+
+        entity_index = context.scene.get_all().index(self.owner)
+        gn.update_entity_transform(entity_index, self.world_matrix.astype(np.float32).flatten())

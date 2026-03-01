@@ -3,6 +3,7 @@ import numpy as np
 class CameraComponent:
     def __init__(self):
         # World-space data
+        self.owner = None
         self.position = np.zeros(3)
         self.front = np.array([0.0, 0.0, -1.0])
         self.up = np.array([0.0, 1.0, 0.0])
@@ -23,6 +24,10 @@ class CameraComponent:
         self.yaw = gn.get_camera_yaw()
         self.pitch = gn.get_camera_pitch()
         self.target = np.array(gn.get_camera_target())
+
+        transform = self.owner.get("transform") # type: ignore
+        if transform:
+            transform.position = self.position
 
     def push_to_native(self, gn):
         """Push ECS camera state back to C++."""

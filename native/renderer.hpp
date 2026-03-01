@@ -3,6 +3,7 @@
 #include <vector>
 #include <glad/glad.h>
 #include "camera.hpp"
+#include <string>
 
 // Forward declarations / globals
 //extern unsigned int shaderProgram;
@@ -16,13 +17,18 @@ extern Camera main_camera;
 extern glm::vec3 cameraFront;
 extern float yaw, pitch;
 
+extern std::vector<std::string> entity_names;
+extern int selected_entity_index;
+extern std::vector<glm::mat4> entity_world_matrices;
+
 struct GPUMesh {
     GLuint vao;
     GLuint vbo_pos, vbo_norm, vbo_uv, vbo_joints, vbo_weights, ebo;
     int index_count;
     GLuint texture_id;
      // Must be an array of 4
-    GLuint vbo_morphs[4]; 
+    GLuint vbo_morphs[4];
+    int entity_index;
 };
 
 
@@ -43,7 +49,8 @@ void add_mesh_to_scene(
     const float* weights, size_t w_size,
     const uint32_t* indices, size_t i_size,
     const std::vector<const float*>& morph_data_ptrs,
-    int tex_id
+    int tex_id,
+    int entity_index
 );
 
 GLuint upload_texture_bytes(const unsigned char* data, int size);
@@ -55,3 +62,5 @@ bool is_key_down(int key);
 bool is_key_pressed(int key);
 void set_joint_count(int count);
 void set_joint_names(const std::vector<std::string>& names);
+
+void update_entity_transform( int entity_index, const float* world_matrix_16 );

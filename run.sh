@@ -23,6 +23,8 @@ clang++ -O3 -shared -std=c++17 -fPIC \
     native/animation.cpp \
     native/lookAt.cpp \
     native/texture_loader.cpp \
+    native/scene_builder.cpp \
+    native/gameObjectShapes/primitives.cpp \
     native/imgui/imgui.cpp \
     native/imgui/imgui_draw.cpp \
     native/imgui/imgui_widgets.cpp \
