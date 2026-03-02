@@ -247,10 +247,15 @@ PYBIND11_MODULE(greko_native, m) {
         entity_world_matrices.clear();
         for (size_t i = 0; i < names.size(); i++)
             entity_world_matrices.push_back(glm::mat4(1.0f));
+
+        entity_positions.resize(names.size(), glm::vec3(0.0f));
+        entity_rotations.resize(names.size(), glm::vec3(0.0f));
+        entity_scales.resize(names.size(), glm::vec3(1.0f));
+        //entity_world_matrices.resize(entity_names.size(), glm::mat4(1.0f));
     });
 
     m.def("get_selected_entity_index", []() {
-        return selected_entity_index;
+        return trackingEntity;
     });
 
     m.def("update_entity_transform", [](int index, py::array_t<float> mat) {

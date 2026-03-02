@@ -19,7 +19,12 @@ extern float yaw, pitch;
 
 extern std::vector<std::string> entity_names;
 extern int selected_entity_index;
+extern int trackingEntity;
 extern std::vector<glm::mat4> entity_world_matrices;
+
+extern std::vector<glm::vec3> entity_positions;
+extern std::vector<glm::vec3> entity_rotations; // Euler degrees for UI
+extern std::vector<glm::vec3> entity_scales;
 
 struct GPUMesh {
     GLuint vao;

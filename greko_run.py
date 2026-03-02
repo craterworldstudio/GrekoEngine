@@ -150,7 +150,7 @@ class Engine:
 
         self.model_entity = Entity("Kisayo")
         self.model_entity.add_component("transform", Transform())
-        self.model_entity.get("transform").position = np.array([3.0, 0.0, 0.0]) # type: ignore
+        self.model_entity.get("transform").position = np.array([0.0, 0.0, 0.0]) # type: ignore
 
         self.scene.add(self.model_entity)
 
@@ -163,7 +163,7 @@ class Engine:
         cube_entity = Entity("TargetCube")
         cube_entity.add_component("transform", Transform())
         cube_entity.get("transform").position = np.array([1.0, 0.0, 0.0]) #type: ignore
-        cube_entity.get("transform").scale = np.array([1.0, 1.0, 1.0]) #type: ignore
+        cube_entity.get("transform").scale = np.array([0.5, 0.5, 0.5]) #type: ignore
         cube_entity.add_component("mesh", MeshComponent("cube", size=1.0))
         self.scene.add(cube_entity)
 

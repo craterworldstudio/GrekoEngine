@@ -54,7 +54,11 @@ double g_fps = 0.0;
 int selected_bone = 0;
 std::vector<std::string> entity_names;
 int selected_entity_index = 0;
+int trackingEntity = -1;
 std::vector<glm::mat4> entity_world_matrices;
+std::vector<glm::vec3> entity_positions;
+std::vector<glm::vec3> entity_rotations; // Euler degrees for UI
+std::vector<glm::vec3> entity_scales;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -434,6 +438,7 @@ void draw_scene() {
 
     if (editMode) {
         ImGui::SetNextWindowPos(ImVec2(0, 180));
+        ImGui::SetNextWindowSize(ImVec2(400, 300));
         ImGui::Begin("Bone Inspector", nullptr,
         ImGuiWindowFlags_NoMove 
         | ImGuiWindowFlags_NoResize
@@ -441,7 +446,6 @@ void draw_scene() {
         //| ImGuiWindowFlags_AlwaysAutoResize
         );
         
-        ImGui::SetNextWindowSize(ImVec2(140, 170));
         //ImGui::SetNextWindowBgAlpha(0.35f);
 
         // 1. Bone Selection Dropdown
@@ -473,9 +477,19 @@ void draw_scene() {
                     ImGui::SetItemDefaultFocus();
             }
             
+            
             ImGui::EndCombo();
         }
-        ImGui::Text("Track: %s", entity_names[selected_entity_index].c_str());
+
+        if (ImGui::Button("Track Selected"))
+            {
+                trackingEntity = selected_entity_index;
+            }
+            
+        if (trackingEntity >= 0 && trackingEntity < entity_names.size())
+            ImGui::Text("Track: %s", entity_names[trackingEntity].c_str());
+        else
+            ImGui::Text("Track: None");
         ImGui::Separator();
 
         if (selected_bone >= 0 && selected_bone < (int)skeleton_bones.size()) {
@@ -516,6 +530,43 @@ void draw_scene() {
 
             ImGui::PopID(); // Always pop what you push!
         }
+
+        ImGui::Separator();
+        ImGui::Text("Entity Transform");
+            
+        if (selected_entity_index >= 0 &&
+            selected_entity_index < entity_positions.size())
+        {
+            glm::vec3& pos = entity_positions[selected_entity_index];
+            glm::vec3& rot = entity_rotations[selected_entity_index];
+            glm::vec3& scl = entity_scales[selected_entity_index];
+        
+            bool changed = false;
+
+            changed |= ImGui::DragFloat3("Position##Entity", &pos.x, 0.01f);
+            changed |= ImGui::DragFloat3("Rotation##Entity", &rot.x, 0.5f);
+            changed |= ImGui::DragFloat3("Scale##Entity", &scl.x, 0.01f);
+
+            if (changed)
+            {
+                int idx = selected_entity_index;
+            
+                glm::mat4 T = glm::translate(glm::mat4(1.0f), pos);
+            
+                glm::mat4 Rx = glm::rotate(glm::mat4(1.0f),
+                    glm::radians(rot.x), glm::vec3(1,0,0));
+            
+                glm::mat4 Ry = glm::rotate(glm::mat4(1.0f),
+                    glm::radians(rot.y), glm::vec3(0,1,0));
+            
+                glm::mat4 Rz = glm::rotate(glm::mat4(1.0f),
+                    glm::radians(rot.z), glm::vec3(0,0,1));
+            
+                glm::mat4 S = glm::scale(glm::mat4(1.0f), scl);
+            
+                entity_world_matrices[idx] = T * Rz * Ry * Rx * S;
+            }
+        }
         ImGui::End();
     }
 
@@ -530,7 +581,7 @@ void draw_scene() {
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
     
-    std::cout << "Meshes in scene: " << scene_meshes.size() << std::endl;
+    //std::cout << "Meshes in scene: " << scene_meshes.size() << std::endl;
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &proj[0][0]);
     //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
@@ -672,6 +723,7 @@ void set_joint_names(const std::vector<std::string>& names)
 
 void update_entity_transform(int entity_index, const float* data)
     {
+        if (editMode) return;
         if (entity_index < 0 || entity_index >= entity_world_matrices.size())
             return;
 
