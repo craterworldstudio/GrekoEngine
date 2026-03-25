@@ -245,8 +245,10 @@ PYBIND11_MODULE(greko_native, m) {
         entity_names = names;
         
         entity_world_matrices.clear();
-        for (size_t i = 0; i < names.size(); i++)
+        for (size_t i = 0; i < names.size(); i++) {
             entity_world_matrices.push_back(glm::mat4(1.0f));
+            entity_authority.push_back(AUTH_PYTHON);
+        };
 
         entity_positions.resize(names.size(), glm::vec3(0.0f));
         entity_rotations.resize(names.size(), glm::vec3(0.0f));
@@ -289,5 +291,33 @@ PYBIND11_MODULE(greko_native, m) {
         }
     
         upload_shapes(shapes);
+    });
+
+    m.def("get_entity_position", [](int idx) {
+        return std::vector<float>{
+            entity_positions[idx].x,
+            entity_positions[idx].y,
+            entity_positions[idx].z
+        };
+    });
+
+    m.def("get_entity_rotation", [](int idx) {
+        return std::vector<float>{
+            entity_rotations[idx].x,
+            entity_rotations[idx].y,
+            entity_rotations[idx].z
+        };
+    });
+
+    m.def("get_entity_scale", [](int idx) {
+        return std::vector<float>{
+            entity_scales[idx].x,
+            entity_scales[idx].y,
+            entity_scales[idx].z
+        };
+    });
+
+    m.def("get_entity_authority", [](int idx) {
+        return entity_authority[idx];
     });
 }

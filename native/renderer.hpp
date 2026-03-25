@@ -36,6 +36,12 @@ struct GPUMesh {
     int entity_index;
 };
 
+enum TransformAuthority {
+    AUTH_PYTHON = 0,
+    AUTH_NATIVE = 1
+};
+
+extern std::vector<int> entity_authority;
 
 // Functions
 int init_renderer(int w, int h);

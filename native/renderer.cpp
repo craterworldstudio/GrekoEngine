@@ -17,6 +17,7 @@
 #include "animation.hpp"
 #include "scene_builder.hpp"
 
+std::vector<int> entity_authority;
 // Define the global instance
 Camera main_camera;
 GLuint shaderProgram;
@@ -490,6 +491,11 @@ void draw_scene() {
             ImGui::Text("Track: %s", entity_names[trackingEntity].c_str());
         else
             ImGui::Text("Track: None");
+
+        if (ImGui::Button("Release Control"))
+        {
+            entity_authority[selected_entity_index] = AUTH_PYTHON;
+        }
         ImGui::Separator();
 
         if (selected_bone >= 0 && selected_bone < (int)skeleton_bones.size()) {
@@ -550,6 +556,7 @@ void draw_scene() {
             if (changed)
             {
                 int idx = selected_entity_index;
+                entity_authority[idx] = AUTH_NATIVE;
             
                 glm::mat4 T = glm::translate(glm::mat4(1.0f), pos);
             
@@ -565,6 +572,9 @@ void draw_scene() {
                 glm::mat4 S = glm::scale(glm::mat4(1.0f), scl);
             
                 entity_world_matrices[idx] = T * Rz * Ry * Rx * S;
+                entity_positions[idx] = pos;
+                entity_rotations[idx] = rot;
+                entity_scales[idx] = scl;
             }
         }
         ImGui::End();
@@ -723,9 +733,11 @@ void set_joint_names(const std::vector<std::string>& names)
 
 void update_entity_transform(int entity_index, const float* data)
     {
-        if (editMode) return;
         if (entity_index < 0 || entity_index >= entity_world_matrices.size())
             return;
+        if (entity_authority[entity_index] == AUTH_NATIVE)
+        return;
+
 
         entity_world_matrices[entity_index] = glm::transpose(glm::make_mat4(data));
     }

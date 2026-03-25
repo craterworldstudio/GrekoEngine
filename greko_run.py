@@ -23,7 +23,7 @@ from core.components.mesh import MeshComponent
 class Engine:
 
     def setup_load(self): 
-        vrm_path = "assets/kisayov2.vrm"
+        vrm_path = "assets/kiyo.vrm"
         
         if not os.path.exists(vrm_path):
             print(f"❌ VRM not found: {vrm_path}")
@@ -155,7 +155,7 @@ class Engine:
         self.scene.add(self.model_entity)
 
         self.camera_entity = Entity("MainCamera")
-        self.camera_entity.add_component("transform", Transform())
+        self.camera_entity.add_component("transform", Transform(camera=True) )
         self.camera_entity.add_component("Camera", CameraComponent())
 
         self.scene.add(self.camera_entity)
