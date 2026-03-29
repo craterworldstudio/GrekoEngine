@@ -1,9 +1,10 @@
 import numpy as np
 from core.gltf_accessors import read_accessor
-import core.greko_native as gn
+#import core.greko_native as gn
 
 class Skeleton:
-    def __init__(self, json_data, bin_blob):
+    def __init__(self, gn, json_data, bin_blob):
+        self.gn = gn
         self.nodes = json_data.get("nodes", [])
         skin = json_data.get("skins", [0])[0] if json_data.get("skins") else {}
         self.joint_nodes = skin.get("joints", [])
@@ -40,7 +41,7 @@ class Skeleton:
             self.joint_parents.append(node_to_joint_idx.get(parent_node, -1))
 
         # 3. SHIP IT TO C++ IMMEDIATELY
-        gn.setup_cpp_skeleton(
+        self.gn.setup_cpp_skeleton(
             len(self.joint_nodes),
             self.joint_parents,
             self.inverse_bind_matrices,

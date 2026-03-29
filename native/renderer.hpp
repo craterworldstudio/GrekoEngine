@@ -12,6 +12,8 @@ extern unsigned int vao;
 extern unsigned int g_texture;
 extern int selected_bone;
 
+static std::string g_shader_base_path = "shaders/";
+
 // Camera
 extern Camera main_camera;
 extern glm::vec3 cameraFront;

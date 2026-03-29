@@ -1,4 +1,4 @@
-from core.behaviours_manager import SkeletonBehaviorBase
+from core.BehaviourBaseClasses import SkeletonBehaviorBase
 
 class LookAt(SkeletonBehaviorBase):
     def __init__(self):
@@ -25,7 +25,7 @@ class LookAt(SkeletonBehaviorBase):
 
         if target_index is None or target_index < 0:
             return
-    
+        #print("Target index:", target_index)
         gn.apply_look_at(
             self.head_index,
             target_index#, target_index[0], target_index[1], target_index[2]

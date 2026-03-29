@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
@@ -16,6 +17,7 @@
 #include "texture_loader.hpp"
 #include "animation.hpp"
 #include "scene_builder.hpp"
+#include "shaders_embedded.hpp"
 
 std::vector<int> entity_authority;
 // Define the global instance
@@ -217,9 +219,26 @@ GLuint compile_shader(const std::string& path, GLenum type) {
     return shader;
 }
 
+GLuint compile_shader_source(const std::string& src, GLenum type) {
+    GLuint shader = glCreateShader(type);
+    const char* c = src.c_str();
+    glShaderSource(shader, 1, &c, nullptr);
+    glCompileShader(shader);
+
+    // Error check
+    GLint ok;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+        char log[512];
+        glGetShaderInfoLog(shader, 512, nullptr, log);
+        fprintf(stderr, "Shader compile error: %s\n", log);
+    }
+    return shader;
+}
+
 void setup_debug_shader() {
-    GLuint vs = compile_shader("shaders/Textest.vert", GL_VERTEX_SHADER);
-    GLuint fs = compile_shader("shaders/Textest.frag", GL_FRAGMENT_SHADER);
+    GLuint vs = compile_shader_source(SHADER_TEXTEST_VERT, GL_VERTEX_SHADER); //compile_shader((g_shader_base_path + "Textest.vert").c_str(), GL_VERTEX_SHADER);
+    GLuint fs = compile_shader_source(SHADER_TEXTEST_FRAG, GL_FRAGMENT_SHADER); //compile_shader((g_shader_base_path + "Textest.frag").c_str(), GL_FRAGMENT_SHADER);
 
     shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vs);

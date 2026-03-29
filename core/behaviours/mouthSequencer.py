@@ -2,7 +2,7 @@
 import time
 from pathlib import Path
 
-from core.behaviours_manager import BehaviorBase
+from core.BehaviourBaseClasses import BehaviorBase
 
 
 class PhonemeEvent:

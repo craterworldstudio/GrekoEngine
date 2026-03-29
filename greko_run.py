@@ -1,12 +1,63 @@
 #from datetime import time
 import time as timen
 import math
+import tempfile
 import sys
-import os
+import os, shutil, importlib, sysconfig
 import numpy as np
 
 #from core import skeleton
-import core.greko_native as gn
+import importlib.util
+import sys
+
+def resource_path(relative):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative)
+    return os.path.join(os.path.abspath("."), relative)
+
+def load_native(path):
+
+    # 🔥 CRITICAL: Use MEIPASS if available
+    if hasattr(sys, "_MEIPASS"):
+        base_dir = sys._MEIPASS
+        print("!")
+    else:
+        base_dir = os.path.abspath(".")
+
+    #target_dir = os.path.join(base_dir, "core")
+    ext = sysconfig.get_config_var('EXT_SUFFIX')
+    target_dir = os.path.join(tempfile.gettempdir(), "greko_runtime")
+    os.makedirs(target_dir, exist_ok=True)
+
+    # FORCE correct module name
+    target_path = os.path.join(target_dir, "greko_native"+ext)
+
+    shutil.copy2(path, target_path)
+
+    if target_dir not in sys.path:
+        sys.path.insert(0, target_dir)
+
+    imp = "greko_native"
+    for imp in ['core.greko_native', 'greko_native']:
+        if imp in sys.modules:
+            return sys.modules[imp]
+
+    importlib.invalidate_caches()
+
+    return importlib.import_module(imp)
+
+def choose_vrm(folder):
+    vrms = [f for f in os.listdir(folder) if f.endswith(".vrm")]
+    
+    print("\nAvailable VRMs:")
+    for i, v in enumerate(vrms):
+        print(f"[{i}] {v}")
+    
+    idx = int(input("Select VRM: "))
+    return os.path.join(folder, vrms[idx])
+
+#import core.greko_native as gn
+#gn = load_native("")
 
 from core.glb_parser import parse_glb
 from core.skeleton import Skeleton
@@ -21,13 +72,16 @@ from core.components.camera import CameraComponent
 from core.components.mesh import MeshComponent
 
 class Engine:
+    def __init__(self, gn, assets_path):
+        self.gn = gn
+        self.assets_path = assets_path
 
     def setup_load(self): 
-        vrm_path = "assets/kiyo.vrm"
+        vrm_path = self.assets_path #"assets/kiyo.vrm"
         
         if not os.path.exists(vrm_path):
             print(f"❌ VRM not found: {vrm_path}")
-            gn.terminate()
+            self.gn.terminate()
             return
 
         print(f"📂 Loading VRM: {vrm_path}")
@@ -35,14 +89,15 @@ class Engine:
 
         self.parsed_data = parse_glb(vrm_path)
         print("🦴 Building Skeleton...")
-        self.skeleton = Skeleton(self.parsed_data.json, self.parsed_data.bin_blob)
+        self.skeleton = Skeleton(self.gn, self.parsed_data.json, self.parsed_data.bin_blob)
+        print("Joint names:", self.skeleton.joint_names[:5])
         print("Joint count:", len(self.skeleton.joint_nodes))
 
-        gn.set_joint_names(self.skeleton.joint_names)
-        gn.set_joint_count(len(self.skeleton.joint_nodes))
+        self.gn.set_joint_names(self.skeleton.joint_names)
+        self.gn.set_joint_count(len(self.skeleton.joint_nodes))
 
         
-        self.animator = Animator(self.skeleton)
+        self.animator = Animator(self.gn, self.skeleton)
         self.Mmanager = MorphBehaviorManager()
         self.Smanager = SkeletonBehaviorManager(self.skeleton)
         
@@ -64,7 +119,7 @@ class Engine:
 
                 tex_id = 0
                 if packed.get('texture') is not None:
-                    tex_id = gn.upload_texture(bytes(packed['texture']), srgb=True)
+                    tex_id = self.gn.upload_texture(bytes(packed['texture']), srgb=True)
                     #print(f"     ✅ Texture ID: {tex_id}")
 
                 render_parts.append({
@@ -96,8 +151,8 @@ class Engine:
         print(f"📦 Sorting Complete: {len(opaque_parts)} opaque, {len(transparent_parts)} transparent.")
 
         # Position camera to view Kisayo
-        gn.set_camera_position(0.0, 1.5, 3.0)
-        gn.set_camera_target(0.0, 1.0, 0.0)
+        self.gn.set_camera_position(0.0, 1.5, 3.0)
+        self.gn.set_camera_target(0.0, 1.0, 0.0)
 
         print("\n🚀 Multi-Draw Engine Ready!")
         print("🎮 Use WASDEQ + mouse to navigate. ESC to toggle mouse.")
@@ -125,7 +180,7 @@ class Engine:
                 else:
                     upload_list.append(np.zeros_like(part["vertices"]))
 
-            gn.upload_mesh(
+            self.gn.upload_mesh(
                 part["vertices"], 
                 part["normals"], 
                 part["uvs"],
@@ -138,13 +193,14 @@ class Engine:
             )
 
     def init_entities(self):
+        
         # Initialize renderer
-        if gn.init_renderer(1280, 720) != 0:
+        if self.gn.init_renderer(1280, 720) != 0:
             print("❌ Renderer init failed")
             sys.exit(1)
         
         self.context = UpdateContext()
-        self.context.gn=gn
+        self.context.gn=self.gn
         self.scene = Scene(self.context)
         self.context.scene = self.scene
 
@@ -166,11 +222,11 @@ class Engine:
         cube_entity.get("transform").scale = np.array([0.5, 0.5, 0.5]) #type: ignore
         cube_entity.add_component("mesh", MeshComponent("cube", size=1.0))
         self.scene.add(cube_entity)
-
-        gn.set_entity_list([e.name for e in self.scene.get_all()])
+        self.setup_load()
+        self.gn.set_entity_list([e.name for e in self.scene.get_all()])
 
         
-        self.setup_load()
+        
         
 
         self.model_entity.add_component("skeleton", self.skeleton)
@@ -204,9 +260,10 @@ class Engine:
         #morph.trigger_mouth_sequence("test.gpseq")
         self.context.animator = animator
         camera_comp = self.camera_entity.get("Camera")
-
-        while not gn.should_close():
-            gn.clear_screen()
+        import sys
+        print([k for k in sys.modules.keys() if "greko" in k])
+        while not self.gn.should_close():
+            self.gn.clear_screen()
             current_time = timen.time()
             dt = current_time - last_time
             last_time = current_time
@@ -222,13 +279,14 @@ class Engine:
             #    animator.update(dt, self.context) # type: ignore
 
             self.scene.update(dt, self.context)
-            gn.draw_scene() 
-            gn.swap_buffers()
+            self.gn.draw_scene() 
+            self.gn.swap_buffers()
 
-        gn.terminate()
+        self.gn.terminate()
 
 if __name__ == "__main__":
-    engine = Engine()
+    import core.greko_native as gn
+    engine = Engine(gn, "./assets/kisayov2.vrm")
     
     engine.init_entities()
     engine.gameloop()

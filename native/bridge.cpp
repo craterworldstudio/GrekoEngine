@@ -72,6 +72,14 @@ void upload_mesh_to_gpu(
     );
 }
 
+void set_shader_base_path(const std::string& path) {
+    g_shader_base_path = path;
+    // Ensure trailing slash
+    if (!g_shader_base_path.empty() && g_shader_base_path.back() != '/')
+        g_shader_base_path += '/';
+}
+
+
 void update_morph_data(int mesh_index, int slot_index, py::array_t<float> new_data) {
     // FLAG: Keep memory alive during the call
     auto arr = new_data.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
@@ -320,4 +328,6 @@ PYBIND11_MODULE(greko_native, m) {
     m.def("get_entity_authority", [](int idx) {
         return entity_authority[idx];
     });
+
+    m.def("add_shader_path", &set_shader_base_path);
 }

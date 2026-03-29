@@ -10,3 +10,10 @@ MeshTransformTable/
 .vscode
 DEPRECIATEDrun.sh
 maybefiles/
+engine_cache
+build/
+dist/
+
+test.adts
+test.gpseq
+core/greko_native.cpython-313-x86_64-linux-gnu.so

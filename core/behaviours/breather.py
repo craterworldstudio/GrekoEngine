@@ -1,7 +1,7 @@
 import time
 import math
 
-from core.behaviours_manager import BehaviorBase
+from core.BehaviourBaseClasses import BehaviorBase
 
 class Breather(BehaviorBase):
     def __init__(self):

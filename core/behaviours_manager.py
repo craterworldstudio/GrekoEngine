@@ -1,15 +1,40 @@
 #from dbm.ndbm import library
-import os
+import os, sys
 import importlib
 import inspect
+import pkgutil
+import core.behaviours
+from core.BehaviourBaseClasses import *
 
-class SkeletonBehaviorBase:
-    
-    def setup(self, *args, **kwargs): pass
-    def update(self, *args, **kwargs): pass
+#import core.behaviours.blinker
+#import core.behaviours.breather
+#import core.behaviours.lookAt
+#import core.behaviours.mouthSequencer
 
-class BehaviorBase:
-    pass
+def _get_behaviour_modules():
+    """Works both in development and when frozen by PyInstaller."""
+    import pkgutil
+    import core.behaviours
+
+    if getattr(sys, 'frozen', False):
+        # When frozen, pkgutil can't walk the zip — enumerate explicitly
+        module_names = [
+            'blinker', 'breather', 'lookAt', 'mouthSequencer'
+        ]
+        modules = []
+        for name in module_names:
+            try:
+                mod = importlib.import_module(f"core.behaviours.{name}")
+                modules.append((None, name, False, mod))
+            except ImportError:
+                pass
+        return modules
+    else:
+        result = []
+        for loader, module_name, is_pkg in pkgutil.iter_modules(core.behaviours.__path__):
+            mod = importlib.import_module(f"core.behaviours.{module_name}")
+            result.append((loader, module_name, is_pkg, mod))
+        return result
 
 class SkeletonBehaviorManager:
     def __init__(self, skeleton):
@@ -17,24 +42,26 @@ class SkeletonBehaviorManager:
         self.skeleton = skeleton
 
     def load_behaviors(self, *args, **kwargs):
-        behavior_dir = "core/behaviours"
+        from greko_run import resource_path
 
-        for filename in os.listdir(behavior_dir):
-            if filename.endswith(".py") and filename != "__init__.py":
-                module_name = f"core.behaviours.{filename[:-3]}"
-                module = importlib.import_module(module_name)
+        behavior_dir = resource_path("core/behaviours")
 
-                for name, obj in inspect.getmembers(module):
-                    if (
-                        inspect.isclass(obj)
-                        and issubclass(obj, SkeletonBehaviorBase)
-                        and obj is not SkeletonBehaviorBase
-                    ):
-                        print(f"🦴 Loaded Skeleton Behavior: {name} from {filename}")
-                        instance = obj()
-                        self.active_behaviors.append(instance)
+        
 
-                        instance.setup(self.skeleton, *args, **kwargs)
+
+        for loader, module_name, is_pkg, module  in _get_behaviour_modules():
+                #module = importlib.import_module(f"core.behaviours.{module_name}")
+
+            for name, obj in inspect.getmembers(module):
+                if (
+                    inspect.isclass(obj)
+                    and issubclass(obj, SkeletonBehaviorBase)
+                    and obj is not SkeletonBehaviorBase
+                ):
+                    print(f"🦴 Loaded Skeleton Behavior: {name} from {module_name}")
+                    instance = obj()
+                    self.active_behaviors.append(instance)
+                    instance.setup(self.skeleton, *args, **kwargs)
 
 
     def update(self, dt, context):
@@ -49,7 +76,12 @@ class MorphBehaviorManager:
 
     def load_behaviors(self):
         """Scans core/behaviours and imports everything"""
-        behavior_dir = "core/behaviours"
+
+        
+
+        #behavior_dir = "core/behaviours"
+
+        """
         for filename in os.listdir(behavior_dir):
             if filename.endswith(".py") and filename != "__init__.py":
                 module_name = f"core.behaviours.{filename[:-3]}"
@@ -61,6 +93,15 @@ class MorphBehaviorManager:
                     if inspect.isclass(obj) and issubclass(obj, BehaviorBase) and obj is not BehaviorBase:
                         print(f"🧩 Loaded Morph Behavior: {name} from {filename}")
                         self.active_behaviors.append(obj())
+        """
+
+        for loader, module_name, is_pkg, module in _get_behaviour_modules():
+            module = importlib.import_module(f"core.behaviours.{module_name}")
+
+            for name, obj in inspect.getmembers(module):
+                if inspect.isclass(obj) and issubclass(obj, BehaviorBase) and obj is not BehaviorBase:
+                    print(f"🧩 Loaded Morph Behavior: {name} from {module_name}")
+                    self.active_behaviors.append(obj())
 
     def inject_morph_library(self, library):
         for b in self.active_behaviors:

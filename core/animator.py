@@ -1,7 +1,7 @@
 from unicodedata import name
 import numpy as np
 import math
-import core.greko_native as gn
+#import core.greko_native as gn
 
 def quaternion_from_axis_angle(axis, angle):
     norm = np.linalg.norm(axis)
@@ -28,7 +28,8 @@ def ease_in_out(t):
 
 
 class Animator:
-    def __init__(self, skeleton):
+    def __init__(self, gn, skeleton):
+        self.gn = gn
         self.skeleton = skeleton
         self.time = 0.0
         self.active_clip = None
@@ -44,7 +45,7 @@ class Animator:
 
     def commit_pose(self):
         for idx, quat in self.pose_buffer.items():
-            gn.set_bone_local_rotation(
+            self.gn.set_bone_local_rotation(
                 idx,
                 float(quat[0]),
                 float(quat[1]),
