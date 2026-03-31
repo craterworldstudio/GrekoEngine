@@ -16,15 +16,15 @@ class LauncherGUI:
         self.root.title("Greko Engine Launcher")
         self.root.geometry("500x450")
 
-        self.so_path = ""
+        self.pyd_path = ""
         self.assets_path = ""
 
         os.makedirs(CACHE_DIR, exist_ok=True)
 
         # --- SO Selection ---
-        tk.Button(root, text="Select .so File", command=self.select_so).pack(pady=10)
-        self.so_label = tk.Label(root, text="No .so selected")
-        self.so_label.pack()
+        tk.Button(root, text="Select .pyd File", command=self.select_pyd).pack(pady=10)
+        self.pyd_label = tk.Label(root, text="No .pyd selected")
+        self.pyd_label.pack()
 
         # --- Assets Selection ---
         tk.Button(root, text="Select Assets Folder", command=self.select_assets).pack(pady=10)
@@ -47,7 +47,7 @@ class LauncherGUI:
     # ===============================
     def save_config(self):
         data = {
-            "so_path": self.so_path,
+            "pyd_path": self.pyd_path,
             "assets_path": self.assets_path
         }
         with open(CONFIG_FILE, "w") as f:
@@ -60,11 +60,11 @@ class LauncherGUI:
         with open(CONFIG_FILE, "r") as f:
             data = json.load(f)
 
-        self.so_path = data.get("so_path", "")
+        self.pyd_path = data.get("pyd_path", "")
         self.assets_path = data.get("assets_path", "")
 
-        if self.so_path:
-            self.so_label.config(text=os.path.basename(self.so_path))
+        if self.pyd_path:
+            self.pyd_label.config(text=os.path.basename(self.pyd_path))
 
         if self.assets_path:
             self.assets_label.config(text=self.assets_path)
@@ -73,8 +73,11 @@ class LauncherGUI:
     # ===============================
     # FILE PICKERS
     # ===============================
-    def select_so(self):
-        path = filedialog.askopenfilename(filetypes=[("Shared Object", "*.so")])
+    def select_pyd(self):
+        path = filedialog.askopenfilename(filetypes=[
+            ("Native Module", "*.pyd"),
+            ("All Files", "*.*")
+                ])
         if path:
             # Copy to local cache
             filename = os.path.basename(path)
@@ -82,8 +85,8 @@ class LauncherGUI:
 
             shutil.copy2(path, cached_path)
 
-            self.so_path = cached_path
-            self.so_label.config(text=filename)
+            self.pyd_path = cached_path
+            self.pyd_label.config(text=filename)
 
             self.save_config()
 
@@ -109,8 +112,8 @@ class LauncherGUI:
     # RUN ENGINE
     # ===============================
     def run_engine(self):
-        if not self.so_path or not self.assets_path:
-            messagebox.showerror("Error", "Select .so and assets folder first")
+        if not self.pyd_path or not self.assets_path:
+            messagebox.showerror("Error", "Select .pyd and assets folder first")
             return
 
         selection = self.vrm_listbox.curselection()
@@ -122,7 +125,7 @@ class LauncherGUI:
         vrm_path = os.path.join(self.assets_path, vrm_file)
 
         try:
-            gn = load_native(self.so_path)
+            gn = load_native(self.pyd_path)
 
             engine = Engine(gn, vrm_path)
             engine.init_entities()

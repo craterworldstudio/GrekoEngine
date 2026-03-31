@@ -334,7 +334,7 @@ bool should_close() {
     return glfwWindowShouldClose(window);
 }
 
-void terminate() {
+void shutdown_renderer() {
     if (window) {
         glfwDestroyWindow(window);
     }

@@ -177,3 +177,6 @@ Fcl_HA_Short_Low
 117 J_Opt_C_FoxTail5_01
 118 J_Opt_C_FoxTail5_end_01
 Joint count: 119
+
+python setup.py build_ext --inplace
+pyinstaller launcher.py --onedir --windowed --collect-all numpy --collect-submodules core.behaviours --noconfirm

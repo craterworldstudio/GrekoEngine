@@ -3,6 +3,13 @@ venv/
 __pycache__/
 *.pyc
 *.log
+*.lib
+*.dll
+*.a
+*.so
+
+libs/glfw/
+libs/glm/
 
 current_session.json
 lighting.json
@@ -11,8 +18,8 @@ MeshTransformTable/
 DEPRECIATEDrun.sh
 maybefiles/
 engine_cache
-build/
-dist/
+build
+dist
 
 test.adts
 test.gpseq

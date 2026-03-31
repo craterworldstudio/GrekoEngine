@@ -98,7 +98,7 @@ PYBIND11_MODULE(greko_native, m) {
     m.def("clear_screen", &clear_screen);
     m.def("swap_buffers", &swap_buffers);
     m.def("should_close", &should_close);
-    m.def("terminate", &terminate);
+    m.def("terminate", &shutdown_renderer);
     m.def("draw_scene", &draw_scene);
     m.def("is_key_down", &is_key_down);
     m.def("is_key_pressed", &is_key_pressed);

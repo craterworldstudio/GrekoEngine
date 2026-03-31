@@ -29,6 +29,9 @@ def load_native(path):
     target_dir = os.path.join(tempfile.gettempdir(), "greko_runtime")
     os.makedirs(target_dir, exist_ok=True)
 
+    if target_dir not in sys.path:
+        pass #sys.path.insert(0, target_dir)
+
     # FORCE correct module name
     target_path = os.path.join(target_dir, "greko_native"+ext)
 
@@ -179,7 +182,7 @@ class Engine:
                     upload_list.append(data)
                 else:
                     upload_list.append(np.zeros_like(part["vertices"]))
-
+            #print(len(upload_list))
             self.gn.upload_mesh(
                 part["vertices"], 
                 part["normals"], 
@@ -290,3 +293,10 @@ if __name__ == "__main__":
     
     engine.init_entities()
     engine.gameloop()
+
+
+
+
+
+
+

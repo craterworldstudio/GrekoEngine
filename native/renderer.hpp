@@ -50,7 +50,7 @@ int init_renderer(int w, int h);
 void clear_screen();
 void swap_buffers();
 bool should_close();
-void terminate();
+void shutdown_renderer();
 void draw_scene();
 
 
