@@ -3,7 +3,7 @@ import time as timen
 import math
 import tempfile
 import sys
-import os, shutil, importlib, sysconfig
+import os, shutil, importlib, sysconfig, json
 import numpy as np
 
 #from core import skeleton
@@ -75,6 +75,12 @@ class Engine:
     def __init__(self, gn, assets_path):
         self.gn = gn
         self.assets_path = assets_path
+        self.eye_constraints = {
+            "inner_yaw": 8.0,
+            "outer_yaw": 6.0,
+            "up_pitch": 4.0,
+            "down_pitch": 3.0
+        }
 
     def setup_load(self): 
         vrm_path = self.assets_path #"assets/kiyo.vrm"
@@ -86,6 +92,12 @@ class Engine:
 
         print(f"📂 Loading VRM: {vrm_path}")
 
+        self.gn.set_eye_constraints(
+            self.eye_constraints["inner_yaw"],
+            self.eye_constraints["outer_yaw"],
+            self.eye_constraints["up_pitch"],
+            self.eye_constraints["down_pitch"]
+        )
 
         self.parsed_data = parse_glb(vrm_path)
         print("🦴 Building Skeleton...")
@@ -220,7 +232,7 @@ class Engine:
         cube_entity.add_component("transform", Transform())
         cube_entity.get("transform").position = np.array([1.0, 0.0, 0.0]) #type: ignore
         cube_entity.get("transform").scale = np.array([0.5, 0.5, 0.5]) #type: ignore
-        cube_entity.add_component("mesh", MeshComponent("cube", size=1.0))
+        cube_entity.add_component("mesh", MeshComponent("cube", size=0.1))
         self.scene.add(cube_entity)
         self.setup_load()
         self.gn.set_entity_list([e.name for e in self.scene.get_all()])
@@ -286,7 +298,9 @@ class Engine:
 
 if __name__ == "__main__":
     import core.greko_native as gn
+    cfg = json.load(open('./config.json', 'r'))
+
     engine = Engine(gn, "./assets/kisayov2.vrm")
-    
+    engine.eye_constraints = cfg.get("eye_constraints", engine.eye_constraints)
     engine.init_entities()
     engine.gameloop()

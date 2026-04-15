@@ -19,6 +19,13 @@ class LauncherGUI:
         self.so_path = ""
         self.assets_path = ""
 
+        self.eye_constraints = {
+            "inner_yaw": 8.0,
+            "outer_yaw": 6.0,
+            "up_pitch": 4.0,
+            "down_pitch": 3.0
+        }
+
         os.makedirs(CACHE_DIR, exist_ok=True)
 
         # --- SO Selection ---
@@ -48,7 +55,8 @@ class LauncherGUI:
     def save_config(self):
         data = {
             "so_path": self.so_path,
-            "assets_path": self.assets_path
+            "assets_path": self.assets_path,
+            "eye_constraints": self.eye_constraints
         }
         with open(CONFIG_FILE, "w") as f:
             json.dump(data, f, indent=2)
@@ -62,6 +70,10 @@ class LauncherGUI:
 
         self.so_path = data.get("so_path", "")
         self.assets_path = data.get("assets_path", "")
+        self.eye_constraints = data.get(
+            "eye_constraints",
+            self.eye_constraints
+        )
 
         if self.so_path:
             self.so_label.config(text=os.path.basename(self.so_path))
@@ -125,6 +137,7 @@ class LauncherGUI:
             gn = load_native(self.so_path)
 
             engine = Engine(gn, vrm_path)
+            engine.eye_constraints = self.eye_constraints
             engine.init_entities()
             engine.gameloop()
 

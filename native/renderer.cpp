@@ -12,12 +12,17 @@
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
 
+#include <json.hpp>
+
 #include "camera.hpp"
 #include "renderer.hpp"
 #include "texture_loader.hpp"
 #include "animation.hpp"
 #include "scene_builder.hpp"
 #include "shaders_embedded.hpp"
+#include "lookAt.hpp"
+
+ActiveEyeAxis active_eye_axis = NONE;
 
 std::vector<int> entity_authority;
 // Define the global instance
@@ -29,12 +34,23 @@ GLuint g_texture = 0;
 glm::vec4 g_base_color = glm::vec4(1.0f);
 GLuint current_texture = 0;
 
+using json = nlohmann::json;
+
 float lastX = 640, lastY = 360;
 float yaw = -90.0f, pitch = 0.0f;
 bool firstMouse = true;
 bool escPressedLastFrame = false;
 bool mouseLocked = true;
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+
+float eye_inner_yaw = 8.0f;
+float eye_outer_yaw = 6.0f;
+float eye_up_pitch  = 4.0f;
+float eye_down_pitch = 3.0f;
+
+static bool config_saved = false;
+bool manual_eye_control = false;
+bool head_tracking_enabled = true;
 
 //struct GPUMesh {
 //    GLuint vao;
@@ -58,6 +74,7 @@ int selected_bone = 0;
 std::vector<std::string> entity_names;
 int selected_entity_index = 0;
 int trackingEntity = -1;
+
 std::vector<glm::mat4> entity_world_matrices;
 std::vector<glm::vec3> entity_positions;
 std::vector<glm::vec3> entity_rotations; // Euler degrees for UI
@@ -458,7 +475,7 @@ void draw_scene() {
 
     if (editMode) {
         ImGui::SetNextWindowPos(ImVec2(0, 180));
-        ImGui::SetNextWindowSize(ImVec2(400, 300));
+        ImGui::SetNextWindowSize(ImVec2(400, 600));
         ImGui::Begin("Bone Inspector", nullptr,
         ImGuiWindowFlags_NoMove 
         | ImGuiWindowFlags_NoResize
@@ -596,6 +613,101 @@ void draw_scene() {
                 entity_scales[idx] = scl;
             }
         }
+
+        ImGui::Separator();
+        ImGui::Text("Head Setting and Eye Constraints");
+        
+        ImGui::BeginGroup();
+        ImGui::Checkbox(
+            "Manual Eye Calibration",
+            &manual_eye_control
+        );
+        //ImGui::SameLine();
+        ImGui::Checkbox(
+            "Head Tracking",
+            &head_tracking_enabled
+        );
+        ImGui::EndGroup();
+
+        if(ImGui::SliderFloat(
+            "Eye Inner Yaw",
+            &eye_inner_yaw,
+            -50.0f,
+            50.0f
+        )) {
+            if (active_eye_axis != INNER_YAW) {
+                active_eye_axis = INNER_YAW;
+                set_eye_constraints(
+                    eye_inner_yaw,
+                    eye_outer_yaw,
+                    eye_up_pitch,
+                    eye_down_pitch
+                );
+            }
+        };
+
+        if(ImGui::SliderFloat(
+            "Eye Outer Yaw",
+            &eye_outer_yaw,
+           -50.0f,
+            50.0f
+        )) {
+            if (active_eye_axis != OUTER_YAW) {
+                active_eye_axis = OUTER_YAW;
+                set_eye_constraints(
+                    eye_inner_yaw,
+                    eye_outer_yaw,
+                    eye_up_pitch,
+                    eye_down_pitch
+                );
+            }
+        };
+
+        if(ImGui::SliderFloat(
+            "Eye Up Pitch",
+            &eye_up_pitch,
+            -50.0f,
+            50.0f
+        )) {
+            if (active_eye_axis != UP_PITCH) {
+                active_eye_axis = UP_PITCH;
+                set_eye_constraints(
+                    eye_inner_yaw,
+                    eye_outer_yaw,
+                    eye_up_pitch,
+                    eye_down_pitch
+                );
+            }
+        };
+
+        if(ImGui::SliderFloat(
+            "Eye Down Pitch",
+            &eye_down_pitch,
+            -50.0f,
+            50.0f
+        )) {
+            if (active_eye_axis != DOWN_PITCH) {
+                active_eye_axis = DOWN_PITCH;
+                set_eye_constraints(
+                    eye_inner_yaw,
+                    eye_outer_yaw,
+                    eye_up_pitch,
+                    eye_down_pitch
+                );
+            }
+        };
+
+        if (ImGui::Button("Save to Config"))
+        {
+            save_eye_constraints_to_config();
+        }
+
+        if (config_saved)
+        {
+            ImGui::Text("Saved!");
+            config_saved = false; // Reset after showing message
+        }
+
         ImGui::End();
     }
 
@@ -760,3 +872,36 @@ void update_entity_transform(int entity_index, const float* data)
 
         entity_world_matrices[entity_index] = glm::transpose(glm::make_mat4(data));
     }
+
+void save_eye_constraints_to_config()
+{
+    const std::string config_path = "config.json";
+
+    json config;
+
+    // Load existing config if present
+    std::ifstream in(config_path);
+    if (in.is_open())
+    {
+        try
+        {
+            in >> config;
+        }
+        catch (...)
+        {
+            config = json::object();
+        }
+        in.close();
+    }
+
+    config["eye_constraints"] = {
+        {"inner_yaw", eye_inner_yaw},
+        {"outer_yaw", eye_outer_yaw},
+        {"up_pitch", eye_up_pitch},
+        {"down_pitch", eye_down_pitch}
+    };
+
+    std::ofstream out(config_path);
+    out << config.dump(4);
+    out.close();
+}

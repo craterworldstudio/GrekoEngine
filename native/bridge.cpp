@@ -247,6 +247,8 @@ PYBIND11_MODULE(greko_native, m) {
     });
 
     m.def("apply_look_at", &apply_look_at);
+    //m.def("apply_head_look_at", &apply_head_look_at);
+    //m.def("apply_eye_look_at", &apply_eye_look_at);
     m.def("reset_to_bind_pose", &reset_to_bind_pose);
 
     m.def("set_entity_list", [](std::vector<std::string> names) {
@@ -330,4 +332,10 @@ PYBIND11_MODULE(greko_native, m) {
     });
 
     m.def("add_shader_path", &set_shader_base_path);
+
+    m.def(
+        "set_eye_constraints",
+        &set_eye_constraints,
+        "Set eye look-at constraint values"
+    );
 }

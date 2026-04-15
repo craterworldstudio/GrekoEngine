@@ -21,7 +21,7 @@ layout (location = 8) in vec3 aMorph3; // Buffer
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-uniform mat4 uJointMatrices[256];
+uniform mat4 uJointMatrices[200];
 
 uniform vec4 uMorphWeights; // [w0, w1, w2, w3]
 

@@ -19,8 +19,11 @@ class LookAt(SkeletonBehaviorBase):
         if self.head_index is None:
             print("⚠ Head bone not found — LookAt disabled ❌")
 
+        if (self.left_eye_index or self.right_eye_index) is None:
+            print("⚠ Eye bones not found — LookAt disabled ❌")
+
     def update(self, gn, animator, target_index):
-        if self.head_index is None:
+        if (self.head_index or self.right_eye_index or self.left_eye_index) is None:
             return
 
         if target_index is None or target_index < 0:
@@ -28,5 +31,7 @@ class LookAt(SkeletonBehaviorBase):
         #print("Target index:", target_index)
         gn.apply_look_at(
             self.head_index,
+            self.left_eye_index,
+            self.right_eye_index,
             target_index#, target_index[0], target_index[1], target_index[2]
         )

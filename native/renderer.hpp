@@ -77,3 +77,4 @@ void set_joint_count(int count);
 void set_joint_names(const std::vector<std::string>& names);
 
 void update_entity_transform( int entity_index, const float* world_matrix_16 );
+void save_eye_constraints_to_config();

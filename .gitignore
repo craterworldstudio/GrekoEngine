@@ -11,8 +11,8 @@ MeshTransformTable/
 DEPRECIATEDrun.sh
 maybefiles/
 engine_cache
-build/
-dist/
+build
+dist
 
 test.adts
 test.gpseq
