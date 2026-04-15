@@ -300,7 +300,7 @@ if __name__ == "__main__":
     import core.greko_native as gn
     cfg = json.load(open('./config.json', 'r'))
 
-    engine = Engine(gn, "./assets/kisayov2.vrm")
+    engine = Engine(gn, "./sample/Vita 1.vrm")
     engine.eye_constraints = cfg.get("eye_constraints", engine.eye_constraints)
     engine.init_entities()
     engine.gameloop()
