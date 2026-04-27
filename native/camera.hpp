@@ -12,8 +12,11 @@ struct Camera {
     glm::vec3 target = glm::vec3(0.0f, 1.0f, 0.0f); // Look at the chest area
     glm::vec3 up     = glm::vec3(0.0f, 1.0f, 0.0f);
     
+    glm::mat4 projection;
     float fov = 45.0f;
     float aspect = 1280.0f / 720.0f;
+    float near_plane = 0.1f;
+    float far_plane = 100.0f;
 
     // FLAG: Matrix Calculation
     glm::mat4 get_view() {
@@ -21,7 +24,7 @@ struct Camera {
     }
 
     glm::mat4 get_projection() {
-        return glm::perspective(glm::radians(fov), aspect, 0.1f, 100.0f);
+        return glm::perspective(glm::radians(fov), aspect, near_plane, far_plane);
     }
 };
 

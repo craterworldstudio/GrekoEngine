@@ -253,7 +253,7 @@ class Engine:
         skeletonM = self.model_entity.get("skeleton_manager")
         skeleton = self.model_entity.get("skeleton")
         morph.load_behaviors() # type: ignore
-        skeletonM.load_behaviors() #type: ignore
+        skeletonM.load_behaviors(self.gn) #type: ignore
         self.context.skeleton = skeleton
 
         morph.face_mesh_indices = self.face_mesh_indices # type: ignore
@@ -272,6 +272,7 @@ class Engine:
         #morph.trigger_mouth_sequence("test.gpseq")
         self.context.animator = animator
         camera_comp = self.camera_entity.get("Camera")
+        
         import sys
         print([k for k in sys.modules.keys() if "greko" in k])
         while not self.gn.should_close():
@@ -300,7 +301,7 @@ if __name__ == "__main__":
     import core.greko_native as gn
     cfg = json.load(open('./config.json', 'r'))
 
-    engine = Engine(gn, "./sample/Vita 1.vrm")
+    engine = Engine(gn, "./assets/kisayov2.vrm")
     engine.eye_constraints = cfg.get("eye_constraints", engine.eye_constraints)
     engine.init_entities()
     engine.gameloop()

@@ -75,6 +75,9 @@ std::vector<std::string> entity_names;
 int selected_entity_index = 0;
 int trackingEntity = -1;
 
+static float config_saved_timer = 0.0f;
+static const float CONFIG_SAVED_DISPLAY_DURATION = 2.0f;
+
 std::vector<glm::mat4> entity_world_matrices;
 std::vector<glm::vec3> entity_positions;
 std::vector<glm::vec3> entity_rotations; // Euler degrees for UI
@@ -83,6 +86,10 @@ std::vector<glm::vec3> entity_scales;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
+
+    height = std::max(height, 1);
+
+    main_camera.aspect = (float)width / (float)height;
 }
 
 
@@ -444,12 +451,20 @@ void add_mesh_to_scene(
 
 // One call from Python draws EVERYTHING stored in the vector.
 void draw_scene() {
-    
     build_pending_shapes();
+
+    float dt = (g_fps > 0.0f) ? (1.0f / g_fps) : (1.0f / 60.0f);
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+
+    if (manual_eye_control)
+    {set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);}
+
+    if (config_saved_timer > 0.0f)
+        config_saved_timer -= dt;
+
 
     // ---- DEBUG OVERLAY (Top-Left HUD Style) ----
     ImGui::SetNextWindowPos(ImVec2(0, 10));
@@ -618,94 +633,59 @@ void draw_scene() {
         ImGui::Text("Head Setting and Eye Constraints");
         
         ImGui::BeginGroup();
-        ImGui::Checkbox(
-            "Manual Eye Calibration",
-            &manual_eye_control
-        );
-        //ImGui::SameLine();
-        ImGui::Checkbox(
-            "Head Tracking",
-            &head_tracking_enabled
-        );
+        ImGui::Checkbox("Manual Eye Calibration", &manual_eye_control);
+        ImGui::Checkbox("Head Tracking",          &head_tracking_enabled);
+
+        float yawL = get_left_eye_yaw();
+        float yawR = get_right_eye_yaw();
+        ImGui::Text("Left Eye Yaw:  %.3f", yawL);
+        ImGui::Text("Right Eye Yaw: %.3f", yawR);
+        ImGui::Text("Separation:    %.3f", yawL - yawR);
         ImGui::EndGroup();
 
-        if(ImGui::SliderFloat(
-            "Eye Inner Yaw",
-            &eye_inner_yaw,
-            -50.0f,
-            50.0f
-        )) {
-            if (active_eye_axis != INNER_YAW) {
-                active_eye_axis = INNER_YAW;
-                set_eye_constraints(
-                    eye_inner_yaw,
-                    eye_outer_yaw,
-                    eye_up_pitch,
-                    eye_down_pitch
-                );
-            }
-        };
+        ImGui::Separator();
 
-        if(ImGui::SliderFloat(
-            "Eye Outer Yaw",
-            &eye_outer_yaw,
-           -50.0f,
-            50.0f
-        )) {
-            if (active_eye_axis != OUTER_YAW) {
-                active_eye_axis = OUTER_YAW;
-                set_eye_constraints(
-                    eye_inner_yaw,
-                    eye_outer_yaw,
-                    eye_up_pitch,
-                    eye_down_pitch
-                );
-            }
-        };
+        // Sliders — always call set_eye_constraints on any change, always update active axis
+        if (ImGui::SliderFloat("Eye Inner Yaw", &eye_inner_yaw, 0.0f, 50.0f))
+        {
+            active_eye_axis = INNER_YAW;
+            set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);
+        }
 
-        if(ImGui::SliderFloat(
-            "Eye Up Pitch",
-            &eye_up_pitch,
-            -50.0f,
-            50.0f
-        )) {
-            if (active_eye_axis != UP_PITCH) {
-                active_eye_axis = UP_PITCH;
-                set_eye_constraints(
-                    eye_inner_yaw,
-                    eye_outer_yaw,
-                    eye_up_pitch,
-                    eye_down_pitch
-                );
-            }
-        };
+        if (ImGui::SliderFloat("Eye Outer Yaw", &eye_outer_yaw, 0.0f, 50.0f))
+        {
+            active_eye_axis = OUTER_YAW;
+            set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);
+        }
 
-        if(ImGui::SliderFloat(
-            "Eye Down Pitch",
-            &eye_down_pitch,
-            -50.0f,
-            50.0f
-        )) {
-            if (active_eye_axis != DOWN_PITCH) {
-                active_eye_axis = DOWN_PITCH;
-                set_eye_constraints(
-                    eye_inner_yaw,
-                    eye_outer_yaw,
-                    eye_up_pitch,
-                    eye_down_pitch
-                );
-            }
-        };
+        if (ImGui::SliderFloat("Eye Up Pitch", &eye_up_pitch, 0.0f, 50.0f))
+        {
+            active_eye_axis = UP_PITCH;
+            set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);
+        }
+
+        if (ImGui::SliderFloat("Eye Down Pitch", &eye_down_pitch, 0.0f, 50.0f))
+        {
+            active_eye_axis = DOWN_PITCH;
+            set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);
+        }
+
+        ImGui::Spacing();
 
         if (ImGui::Button("Save to Config"))
         {
             save_eye_constraints_to_config();
+            config_saved_timer = CONFIG_SAVED_DISPLAY_DURATION;
         }
 
-        if (config_saved)
+        if (config_saved_timer > 0.0f)
         {
+            // Fade the text out over the last 0.5 seconds
+            float alpha = glm::clamp(config_saved_timer / 0.5f, 0.0f, 1.0f);
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.9f, 0.4f, alpha));
             ImGui::Text("Saved!");
-            config_saved = false; // Reset after showing message
+            ImGui::PopStyleColor();
         }
 
         ImGui::End();

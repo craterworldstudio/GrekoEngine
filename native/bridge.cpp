@@ -338,4 +338,6 @@ PYBIND11_MODULE(greko_native, m) {
         &set_eye_constraints,
         "Set eye look-at constraint values"
     );
+
+    m.def("init_lookat", &init_look_at);
 }
