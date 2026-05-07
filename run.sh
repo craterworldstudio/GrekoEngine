@@ -23,6 +23,10 @@ done
 if [ "$COMPILE" = true ]; then
     echo "🔨 [1/2] Compiling Native Engine Muscle..."
 
+    echo "Building Shaders.."
+    python embed_shaders.py
+
+    echo "Compiling Engine Core into shared object.."
     # -------------------------------
     # Native build
     # -------------------------------

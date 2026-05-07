@@ -203,7 +203,7 @@ static void update_eye_jitter(float dt) {
 
     if (saccade_timer <= 0.0f) {
         // Randomize the next jump time (between 0.1s and 0.5s)
-        saccade_timer = 0.1f + (static_cast<float>(rand()) / RAND_MAX) * 0.4f;
+        saccade_timer = 0.1f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.4f;
 
         // Generate a tiny random offset in degrees
         // Most jumps are very small (0.1 - 0.5 degrees)
@@ -212,8 +212,8 @@ static void update_eye_jitter(float dt) {
         // Occasional "micro-saccade" (1 in 10 chance for a slightly bigger jump)
         if ((rand() % 10) == 0) intensity = 1.2f;
 
-        saccade_offset.x = ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * intensity;
-        saccade_offset.y = ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * intensity;
+        saccade_offset.x = ((static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) - 0.5f) * intensity;
+        saccade_offset.y = ((static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) - 0.5f) * intensity;
     }
 
     // Slowly decay the offset so the eye always tries to return to the true target

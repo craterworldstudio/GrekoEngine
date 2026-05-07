@@ -84,8 +84,19 @@ std::vector<glm::vec3> entity_rotations; // Euler degrees for UI
 std::vector<glm::vec3> entity_scales;
 
 glm::vec3 g_lightDirection = glm::vec3(-0.3f, -1.0f, -0.2f); 
-glm::vec3 g_lightColor = glm::vec3(1.0f); 
-glm::vec3 g_ambientColor = glm::vec3(0.18f, 0.18f, 0.22f);
+glm::vec3 g_lightColor = glm::vec3(1.0f, 0.941176f, 0.862745f); 
+glm::vec3 g_ambientColor = glm::vec3(0.2353f, 0.2549f, 0.3137f); 
+glm::vec3 g_shadowColor = glm::vec3(0.7843f, 0.6275f, 0.6863f); // Warm pinkish shadow tint — Genshin signature
+glm::vec3 g_outerShadowColor = glm::vec3(0.6666667f, 0.5098039f, 0.5686275f);
+glm::vec3 g_rimColor = glm::vec3(0.8627f, 0.9020f, 1.0f);;
+
+float g_celLightSmooth = 0.08f;
+float g_outerShadowOffset = 0.18f;
+float g_outerShadowSmooth = 0.03f;
+float g_rimPow = 4.0f;
+float g_rimIntensity = 0.35f;
+
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -498,12 +509,8 @@ void draw_scene() {
         ImGui::Begin("Bone Inspector", nullptr,
         ImGuiWindowFlags_NoMove 
         | ImGuiWindowFlags_NoResize
-        //| ImGuiWindowFlags_NoCollapse 
-        //| ImGuiWindowFlags_AlwaysAutoResize
         );
         
-        //ImGui::SetNextWindowBgAlpha(0.35f);
-
         // 1. Bone Selection Dropdown
         std::string preview = (selected_bone >= 0 && selected_bone < joint_names.size()) ? 
                               joint_names[selected_bone] : "Select Bone";
@@ -525,22 +532,15 @@ void draw_scene() {
             {
                 bool is_selected = (selected_entity_index == i);
                 if (ImGui::Selectable(entity_names[i].c_str(), is_selected))
-                {
                     selected_entity_index = i;
-                    }
-            
                 if (is_selected)
                     ImGui::SetItemDefaultFocus();
             }
-            
-            
             ImGui::EndCombo();
         }
 
         if (ImGui::Button("Track Selected"))
-            {
-                trackingEntity = selected_entity_index;
-            }
+            trackingEntity = selected_entity_index;
             
         if (trackingEntity >= 0 && trackingEntity < entity_names.size())
             ImGui::Text("Track: %s", entity_names[trackingEntity].c_str());
@@ -548,24 +548,17 @@ void draw_scene() {
             ImGui::Text("Track: None");
 
         if (ImGui::Button("Release Control"))
-        {
             entity_authority[selected_entity_index] = AUTH_PYTHON;
-        }
+
         ImGui::Separator();
 
         if (selected_bone >= 0 && selected_bone < (int)skeleton_bones.size()) {
             Bone& bone = skeleton_bones[selected_bone];
-
-            // FLAG: ImGui ID Stack
-            // This ensures that "Position" for Bone 0 is different from "Position" for Bone 1
             ImGui::PushID(selected_bone);
         
-            // 2. Edit Local Position
-            if (ImGui::DragFloat3("Position", &bone.local_pos.x, 0.01f)) {
+            if (ImGui::DragFloat3("Position", &bone.local_pos.x, 0.01f))
                 update_skeleton_hierarchy();
-            }
         
-            // 3. Edit Local Rotation
             static glm::vec3 euler = glm::vec3(0.0f);
             if (last_selected_bone != selected_bone) {
                 euler = glm::degrees(glm::eulerAngles(bone.local_rot));
@@ -577,19 +570,16 @@ void draw_scene() {
                 update_skeleton_hierarchy();
             }
         
-            // 4. Edit Local Scale
-            if (ImGui::DragFloat3("Scale", &bone.local_scale.x, 0.01f)) {
+            if (ImGui::DragFloat3("Scale", &bone.local_scale.x, 0.01f))
                 update_skeleton_hierarchy();
-            }
         
             if (ImGui::Button("Reset Transform")) {
-                bone.local_pos = glm::vec3(0.0f);
-                bone.local_rot = glm::quat(1,0,0,0);
+                bone.local_pos   = glm::vec3(0.0f);
+                bone.local_rot   = glm::quat(1,0,0,0);
                 bone.local_scale = glm::vec3(1.0f);
                 update_skeleton_hierarchy();
             }
-
-            ImGui::PopID(); // Always pop what you push!
+            ImGui::PopID();
         }
 
         ImGui::Separator();
@@ -603,33 +593,22 @@ void draw_scene() {
             glm::vec3& scl = entity_scales[selected_entity_index];
         
             bool changed = false;
-
             changed |= ImGui::DragFloat3("Position##Entity", &pos.x, 0.01f);
             changed |= ImGui::DragFloat3("Rotation##Entity", &rot.x, 0.5f);
-            changed |= ImGui::DragFloat3("Scale##Entity", &scl.x, 0.01f);
+            changed |= ImGui::DragFloat3("Scale##Entity",    &scl.x, 0.01f);
 
-            if (changed)
-            {
+            if (changed) {
                 int idx = selected_entity_index;
                 entity_authority[idx] = AUTH_NATIVE;
-            
-                glm::mat4 T = glm::translate(glm::mat4(1.0f), pos);
-            
-                glm::mat4 Rx = glm::rotate(glm::mat4(1.0f),
-                    glm::radians(rot.x), glm::vec3(1,0,0));
-            
-                glm::mat4 Ry = glm::rotate(glm::mat4(1.0f),
-                    glm::radians(rot.y), glm::vec3(0,1,0));
-            
-                glm::mat4 Rz = glm::rotate(glm::mat4(1.0f),
-                    glm::radians(rot.z), glm::vec3(0,0,1));
-            
-                glm::mat4 S = glm::scale(glm::mat4(1.0f), scl);
-            
+                glm::mat4 T  = glm::translate(glm::mat4(1.0f), pos);
+                glm::mat4 Rx = glm::rotate(glm::mat4(1.0f), glm::radians(rot.x), glm::vec3(1,0,0));
+                glm::mat4 Ry = glm::rotate(glm::mat4(1.0f), glm::radians(rot.y), glm::vec3(0,1,0));
+                glm::mat4 Rz = glm::rotate(glm::mat4(1.0f), glm::radians(rot.z), glm::vec3(0,0,1));
+                glm::mat4 S  = glm::scale(glm::mat4(1.0f), scl);
                 entity_world_matrices[idx] = T * Rz * Ry * Rx * S;
                 entity_positions[idx] = pos;
                 entity_rotations[idx] = rot;
-                entity_scales[idx] = scl;
+                entity_scales[idx]    = scl;
             }
         }
 
@@ -639,7 +618,6 @@ void draw_scene() {
         ImGui::BeginGroup();
         ImGui::Checkbox("Manual Eye Calibration", &manual_eye_control);
         ImGui::Checkbox("Head Tracking",          &head_tracking_enabled);
-
         float yawL = get_left_eye_yaw();
         float yawR = get_right_eye_yaw();
         ImGui::Text("Left Eye Yaw:  %.3f", yawL);
@@ -649,42 +627,31 @@ void draw_scene() {
 
         ImGui::Separator();
 
-        // Sliders — always call set_eye_constraints on any change, always update active axis
-        if (ImGui::SliderFloat("Eye Inner Yaw", &eye_inner_yaw, 0.0f, 50.0f))
-        {
+        if (ImGui::SliderFloat("Eye Inner Yaw", &eye_inner_yaw, 0.0f, 50.0f)) {
             active_eye_axis = INNER_YAW;
             set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);
         }
-
-        if (ImGui::SliderFloat("Eye Outer Yaw", &eye_outer_yaw, 0.0f, 50.0f))
-        {
+        if (ImGui::SliderFloat("Eye Outer Yaw", &eye_outer_yaw, 0.0f, 50.0f)) {
             active_eye_axis = OUTER_YAW;
             set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);
         }
-
-        if (ImGui::SliderFloat("Eye Up Pitch", &eye_up_pitch, 0.0f, 50.0f))
-        {
+        if (ImGui::SliderFloat("Eye Up Pitch", &eye_up_pitch, 0.0f, 50.0f)) {
             active_eye_axis = UP_PITCH;
             set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);
         }
-
-        if (ImGui::SliderFloat("Eye Down Pitch", &eye_down_pitch, 0.0f, 50.0f))
-        {
+        if (ImGui::SliderFloat("Eye Down Pitch", &eye_down_pitch, 0.0f, 50.0f)) {
             active_eye_axis = DOWN_PITCH;
             set_eye_constraints(eye_inner_yaw, eye_outer_yaw, eye_up_pitch, eye_down_pitch);
         }
 
         ImGui::Spacing();
 
-        if (ImGui::Button("Save to Config"))
-        {
+        if (ImGui::Button("Save to Config")) {
             save_eye_constraints_to_config();
             config_saved_timer = CONFIG_SAVED_DISPLAY_DURATION;
         }
 
-        if (config_saved_timer > 0.0f)
-        {
-            // Fade the text out over the last 0.5 seconds
+        if (config_saved_timer > 0.0f) {
             float alpha = glm::clamp(config_saved_timer / 0.5f, 0.0f, 1.0f);
             ImGui::SameLine();
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.9f, 0.4f, alpha));
@@ -693,50 +660,55 @@ void draw_scene() {
         }
 
         ImGui::End();
-            
 
+        // ---- Lighting + Cel Shader Controls (top-right) ----
         ImGuiViewport* viewport = ImGui::GetMainViewport(); 
-        float windowWidth = 320.0f; float padding = 10.0f; 
-        ImGui::SetNextWindowPos( ImVec2( viewport->WorkSize.x - windowWidth - padding, 10.0f ) ); 
-        ImGui::SetNextWindowSize( ImVec2(windowWidth, 240) );
+        float windowWidth = 320.0f;
+        float padding     = 10.0f; 
+        ImGui::SetNextWindowPos(ImVec2(viewport->WorkSize.x - windowWidth - padding, 10.0f));
+        ImGui::SetNextWindowSize(ImVec2(windowWidth, 520));
             
-        ImGui::Begin(
-            "Lighting Controls",
-            nullptr,
-            ImGuiWindowFlags_NoCollapse
-        );
+        ImGui::Begin("Lighting Controls", nullptr, ImGuiWindowFlags_NoCollapse);
         
-        // ==========================
-        // Directional Light
-        // ==========================
         ImGui::Text("Directional Light");
-        
-        ImGui::DragFloat3(
-            "Light Direction",
-            &g_lightDirection.x,
-            0.01f,
-            -1.0f,
-            1.0f
-        );
-        
-        // Normalize so lighting stays stable
+        ImGui::DragFloat3("Light Direction", &g_lightDirection.x, 0.01f, -1.0f, 1.0f);
         g_lightDirection = glm::normalize(g_lightDirection);
-        
-        // ==========================
-        // Light Color
-        // ==========================
-        ImGui::ColorEdit3(
-            "Light Color",
-            &g_lightColor.x
-        );
-        
-        // ==========================
-        // Ambient
-        // ==========================
-        ImGui::ColorEdit3(
-            "Ambient Color",
-            &g_ambientColor.x
-        );
+        ImGui::ColorEdit3("Light Color",   &g_lightColor.x);
+        ImGui::ColorEdit3("Ambient Color", &g_ambientColor.x);
+
+        ImGui::Separator();
+        ImGui::Text("Cel Shading");
+
+        // uLightSmooth: controls how soft the light/shadow boundary is.
+        // 0.0 = perfectly hard (classic toon), 0.1 = Genshin-style slight softness.
+        ImGui::SliderFloat("Light Smooth",         &g_celLightSmooth,       0.0f, 0.5f);
+
+        // uShadowColor / uBaseColor: tint lerped across the shadow boundary.
+        // Think of shadowColor as "what colour is the dark side", baseColor as "what colour is the lit side".
+        // Warm shadows (pinkish) are the Genshin signature look.
+        ImGui::ColorEdit3("Shadow Color",          &g_shadowColor.x);
+        ImGui::ColorEdit3("Base (Lit) Color",      &g_base_color.x);
+
+        ImGui::Separator();
+        ImGui::Text("Outer Shadow");
+
+        // The outer shadow is a second, harder shadow band that sits just outside
+        // the main shadow. Offset pushes it further from the terminator, smooth
+        // controls how crisp its edge is (keep this low, ~0.02-0.05).
+        ImGui::SliderFloat("Outer Offset",         &g_outerShadowOffset,    0.0f, 0.5f);
+        ImGui::SliderFloat("Outer Smooth",         &g_outerShadowSmooth,    0.0f, 0.1f);
+        ImGui::ColorEdit3("Outer Shadow Color",    &g_outerShadowColor.x);
+
+        ImGui::Separator();
+        ImGui::Text("Rim Highlight");
+
+        // Rim highlight: a fresnel-based glow on the lit silhouette edge.
+        // The article uses a post-process Sobel pass for this; this is the
+        // shader-side fresnel approximation until you add that pass.
+        // RimPow controls how tight the rim band is (higher = thinner).
+        ImGui::ColorEdit3("Rim Color",             &g_rimColor.x);
+        ImGui::SliderFloat("Rim Power",            &g_rimPow,               0.5f, 8.0f);
+        ImGui::SliderFloat("Rim Intensity",        &g_rimIntensity,         0.0f, 1.0f);
 
         ImGui::End();
     }
@@ -744,62 +716,85 @@ void draw_scene() {
 
     glUseProgram(shaderProgram);
 
-    // ========================== 
-    // Toon Lighting Uniforms 
-    // ========================== 
+    // ============================================================
+    // CAMERA UNIFORM
+    // The fragment shader needs the camera world position to compute
+    // the view direction V for fresnel (rim) and metallic UV.
+    // ============================================================
+    glUniform3fv(
+        glGetUniformLocation(shaderProgram, "uCameraPos"),
+        1, glm::value_ptr(main_camera.pos)
+    );
 
-    glUniform3fv( glGetUniformLocation(shaderProgram, "uLightDirection"), 1, glm::value_ptr(g_lightDirection)); 
-    glUniform3fv( glGetUniformLocation(shaderProgram, "uLightColor"),     1, glm::value_ptr(g_lightColor)); 
-    glUniform3fv( glGetUniformLocation(shaderProgram, "uAmbientColor"),   1, glm::value_ptr(g_ambientColor));
+    // ============================================================
+    // LIGHT UNIFORMS (unchanged from before)
+    // ============================================================
+    glUniform3fv(glGetUniformLocation(shaderProgram, "uLightDirection"), 1, glm::value_ptr(g_lightDirection));
+    glUniform3fv(glGetUniformLocation(shaderProgram, "uLightColor"),     1, glm::value_ptr(g_lightColor));
+    glUniform3fv(glGetUniformLocation(shaderProgram, "uAmbientColor"),   1, glm::value_ptr(g_ambientColor));
 
-    // ==============================
-    //       DATA -> CAMERA
-    // ==============================
+    // ============================================================
+    // CEL SHADING UNIFORMS — NEW
+    // These were all missing before, which is why the world was dark.
+    // ============================================================
 
+    // Main cel boundary softness. 0.1 = Genshin-style. 0.0 = hard toon.
+    glUniform1f(
+        glGetUniformLocation(shaderProgram, "uLightSmooth"),
+        g_celLightSmooth
+    );
+
+    // Shadow/lit tint lerp — "more color control" per the article.
+    // Warm pink shadow tint is the Genshin signature. Lit side stays white.
+    glUniform3fv(glGetUniformLocation(shaderProgram, "uShadowColor"), 1, glm::value_ptr(g_shadowColor));
+    glUniform3fv(glGetUniformLocation(shaderProgram, "uBaseColor"),   1, glm::value_ptr(g_base_color));
+
+    // Outer shadow band — thin darker ring just before the main shadow.
+    glUniform1f(glGetUniformLocation(shaderProgram, "uOuterShadowOffset"), g_outerShadowOffset);
+    glUniform1f(glGetUniformLocation(shaderProgram, "uOuterShadowSmooth"), g_outerShadowSmooth);
+    glUniform3fv(glGetUniformLocation(shaderProgram, "uOuterShadowColor"), 1, glm::value_ptr(g_outerShadowColor));
+
+    // Rim / edge highlight (fresnel approximation until Sobel pass is added).
+    glUniform3fv(glGetUniformLocation(shaderProgram, "uRimColor"),    1, glm::value_ptr(g_rimColor));
+    glUniform1f(glGetUniformLocation(shaderProgram, "uRimPow"),       g_rimPow);
+    glUniform1f(glGetUniformLocation(shaderProgram, "uRimIntensity"), g_rimIntensity);
+
+    // ============================================================
+    // CAMERA / PROJECTION
+    // ============================================================
     glm::mat4 view = main_camera.get_view();
     glm::mat4 proj = main_camera.get_projection();
-    //glm::mat4 model = glm::mat4(1.0f);
-    //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));   
-
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"),       1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
-    
-    //std::cout << "Meshes in scene: " << scene_meshes.size() << std::endl;
-    //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
-    //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &proj[0][0]);
-    //glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
 
+    // ============================================================
+    // JOINT MATRICES
+    // ============================================================
     GLint jointLoc = glGetUniformLocation(shaderProgram, "uJointMatrices");
-    if (jointLoc != -1) {
+    if (jointLoc != -1)
         glUniformMatrix4fv(jointLoc, joint_count, GL_FALSE, glm::value_ptr(joint_matrices[0]));
-    }
+
+    // ============================================================
+    // PER-MESH DRAW
+    // ============================================================
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
+
     for (const auto& mesh : scene_meshes) {
         glm::mat4 model = glm::mat4(1.0f);
-
-        if (mesh.entity_index >= 0 && 
-            mesh.entity_index < entity_world_matrices.size())
-        {
+        if (mesh.entity_index >= 0 && mesh.entity_index < entity_world_matrices.size())
             model = entity_world_matrices[mesh.entity_index];
-        }
         
-        glUniformMatrix4fv( modelLoc, 1, GL_FALSE, glm::value_ptr(model) );
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-        // FLAG: The Critical Texture Bind
-        // We use mesh.texture_id (which Python sent) instead of a global variable.
+        // Texture bind
         if (mesh.texture_id != 0) {
-            glActiveTexture(GL_TEXTURE0); 
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, mesh.texture_id);
-            
-            // Tell the shader: "Use Texture Unit 0"
-            GLint texLoc = glGetUniformLocation(shaderProgram, "uMainTex");
-            glUniform1i(texLoc, 0);
+            glUniform1i(glGetUniformLocation(shaderProgram, "uMainTex"), 0);
         }
 
-        // FLAG: Base Color Safety
-        // If it's black, Kisayo will be a shadow. Let's force it to White (1.0) for now.
-        GLint colorLoc = glGetUniformLocation(shaderProgram, "uBaseColorFactor");
-        glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+        // Base color factor
+        glUniform4f(glGetUniformLocation(shaderProgram, "uBaseColorFactor"), 1.0f, 1.0f, 1.0f, 1.0f);
 
         glBindVertexArray(mesh.vao);
         glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, 0);
@@ -807,7 +802,6 @@ void draw_scene() {
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
 }
 
 GLuint upload_texture_bytes(const unsigned char* data, int size) {

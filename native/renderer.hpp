@@ -44,8 +44,18 @@ enum TransformAuthority {
 };
 
 extern glm::vec3 g_lightDirection;
+
 extern glm::vec3 g_lightColor;
 extern glm::vec3 g_ambientColor;
+extern glm::vec3 g_shadowColor; 
+extern glm::vec3 g_outerShadowColor; 
+extern glm::vec3 g_rimColor;
+
+extern float g_celLightSmooth;
+extern float g_outerShadowOffset;
+extern float g_outerShadowSmooth;
+extern float g_rimPow;
+extern float g_rimIntensity;
 
 extern std::vector<int> entity_authority;
 

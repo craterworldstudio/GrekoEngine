@@ -27,48 +27,45 @@ uniform vec4 uMorphWeights; // [w0, w1, w2, w3]
 // Outputs
 // ==========================
 out vec2 vUV;
-//out vec3 vNormal; // for lighting
 out vec3 vWorldNormal; // World-space normal  — for NdotL, fresnel
 out vec3 vWorldPos;    // World-space position — for view direction
 
 void main()
 {
-    vec3 m0 = aMorph0 * uMorphWeights.x;
-    vec3 m1 = aMorph1 * uMorphWeights.y;
-    vec3 m2 = aMorph2 * uMorphWeights.z;
-    vec3 m3 = aMorph3 * uMorphWeights.w;
-
-    vec3 totalMorphOffset = m0 + m1 + m2 + m3;
-
-    float totalWeight = aWeights.x + aWeights.y + aWeights.z + aWeights.w;
+    // ---- Morph targets ----
+    vec3 totalMorphOffset = aMorph0 * uMorphWeights.x
+                          + aMorph1 * uMorphWeights.y
+                          + aMorph2 * uMorphWeights.z
+                          + aMorph3 * uMorphWeights.w;
 
     vec3 morphedPos = aPos + totalMorphOffset;
+
+    // ---- Skinning ----
+    float totalWeight = aWeights.x + aWeights.y + aWeights.z + aWeights.w;
     mat4 skinMatrix;
     if (totalWeight < 0.01) {
-        // If no weights exist, fall back to a standard static pose
         skinMatrix = mat4(1.0);
     } else {
-        skinMatrix = 
+        skinMatrix =
             aWeights.x * uJointMatrices[aJoints.x] +
             aWeights.y * uJointMatrices[aJoints.y] +
             aWeights.z * uJointMatrices[aJoints.z] +
             aWeights.w * uJointMatrices[aJoints.w];
     }
 
-    // FLAG: The "Forehead Eye" Fix
-    // OpenGL starts (0,0) at the bottom-left. 
-    // VRM/glTF textures are authored for top-left.
-    // Flipping the Y axis puts the eyes in the sockets.
     vec4 skinnedPos = skinMatrix * vec4(morphedPos, 1.0);
-    vUV = vec2(aUV.x, 1.0 - aUV.y); 
 
-    // Pass normal to fragment shader (adjust by model rotation)
+    // ---- UV flip (OpenGL bottom-left -> glTF/VRM top-left) ----
+    // FLAG: The "Forehead Eye" Fix — keep this
+    vUV = vec2(aUV.x, 1.0 - aUV.y);
+
+    // ---- World-space normal ----
+    // inverse-transpose handles non-uniform scale correctly
     mat3 normalMatrix = transpose(inverse(mat3(model * skinMatrix)));
     vWorldNormal = normalize(normalMatrix * aNormal);
-    vWorldPos = vec3(model * skinnedPos);
 
-    //mat3 normalMatrix = mat3(model * skinMatrix); 
-    //vNormal = normalize(normalMatrix * aNormal);
+    // ---- World-space position ----
+    vWorldPos = vec3(model * skinnedPos);
 
     gl_Position = projection * view * model * skinnedPos;
 }
