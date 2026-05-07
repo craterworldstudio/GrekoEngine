@@ -20,6 +20,12 @@ static float debug_eye_yaw_L   = 0.0f;
 static float debug_eye_yaw_R   = 0.0f;
 static bool  axis_debug_printed = false;
 
+float near_dist = 0.4f;   // FULL convergence here
+float far_dist  = 5.0f;   // NO convergence here
+
+static float saccade_timer = 0.0f;
+static glm::vec2 saccade_offset = glm::vec2(0.0f);
+
 // ─── Rest pose cache ──────────────────────────────────────────────────────────
 
 static glm::quat eye_rest_world_rot_L  = glm::quat(1,0,0,0);
@@ -88,6 +94,8 @@ static void update_pupil_dilation(float dt)
 {
     float w = 1.0f - std::exp(-pupil_dilation_speed * dt);
     pupil_dilation_current = glm::mix(pupil_dilation_current, pupil_dilation_target, w);
+
+
 }
 
 // ─── Solver ───────────────────────────────────────────────────────────────────
@@ -170,7 +178,7 @@ static glm::vec2 apply_elliptic_clamp(glm::vec2 angles, bool is_left)
     float yaw_inner = is_left ? yaw : -yaw;
 
     float max_yaw   = (yaw_inner >= 0.0f) ? eye_inner_yaw : eye_outer_yaw;
-    float max_pitch = (pitch     >= 0.0f) ? eye_up_pitch  : eye_down_pitch;
+    float max_pitch = (pitch     < 0.0f) ? eye_up_pitch  : eye_down_pitch;
 
     if (max_yaw   < 0.5f) max_yaw   = 0.5f;
     if (max_pitch < 0.5f) max_pitch = 0.5f;
@@ -190,6 +198,27 @@ static glm::vec2 apply_elliptic_clamp(glm::vec2 angles, bool is_left)
 }
 
 // ─── Eye look-at ──────────────────────────────────────────────────────────────
+static void update_eye_jitter(float dt) {
+    saccade_timer -= dt;
+
+    if (saccade_timer <= 0.0f) {
+        // Randomize the next jump time (between 0.1s and 0.5s)
+        saccade_timer = 0.1f + (static_cast<float>(rand()) / RAND_MAX) * 0.4f;
+
+        // Generate a tiny random offset in degrees
+        // Most jumps are very small (0.1 - 0.5 degrees)
+        float intensity = 0.6f; 
+        
+        // Occasional "micro-saccade" (1 in 10 chance for a slightly bigger jump)
+        if ((rand() % 10) == 0) intensity = 1.2f;
+
+        saccade_offset.x = ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * intensity;
+        saccade_offset.y = ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * intensity;
+    }
+
+    // Slowly decay the offset so the eye always tries to return to the true target
+    saccade_offset = glm::mix(saccade_offset, glm::vec2(0.0f), 5.0f * dt);
+}
 
 void apply_eye_look_at(
     int              left_eye_index,
@@ -209,6 +238,13 @@ void apply_eye_look_at(
 
     glm::vec3 left_pos  = glm::vec3(L.global_matrix[3]);
     glm::vec3 right_pos = glm::vec3(R.global_matrix[3]);
+    glm::vec3 mid       = 0.5f * (left_pos + right_pos);
+    float     dist      = glm::length(target_world - mid);
+
+    // ── Far distance — eyes return to rest pose beyond this ───────────────
+    // Smoothly blend weight to 0 over the last 20% of far_dist
+    float far_fade_start = far_dist * 0.8f;
+    float track_weight   = 1.0f - glm::smoothstep(far_fade_start, far_dist, dist);
 
     glm::vec2 raw_L = solve_in_bone_space(
         eye_rest_global_L, eye_rest_world_rot_L,
@@ -218,6 +254,10 @@ void apply_eye_look_at(
         eye_rest_global_R, eye_rest_world_rot_R,
         right_pos, target_world, R.parent_index, "RIGHT");
 
+    // Fade toward rest pose (0,0) when target is far
+    raw_L = glm::mix(glm::vec2(0.0f), raw_L, track_weight);
+    raw_R = glm::mix(glm::vec2(0.0f), raw_R, track_weight);
+
     if (!axis_debug_printed)
     {
         std::cout << "[LookAt] raw_L: pitch=" << raw_L.x << " yaw=" << raw_L.y << std::endl;
@@ -225,19 +265,66 @@ void apply_eye_look_at(
         axis_debug_printed = true;
     }
 
+    // ── Near distance — vergence (convergence) ─────────────────────────────
+    // Below near_dist, yaw angles are solved per-eye naturally by geometry.
+    // Above near_dist, blend both eyes toward the shared center direction
+    // so they stay parallel for distant targets.
+    // t=0 at near_dist (full per-eye solve = convergence)
+    // t=1 at near_dist*3 and beyond (center solve = parallel)
+    float vergence_t = glm::smoothstep(near_dist, near_dist * 3.0f, dist);
+
+    // Center solve — single direction from midpoint, same for both eyes
+    glm::vec2 center_L = solve_in_bone_space(
+        eye_rest_global_L, eye_rest_world_rot_L,
+        mid, target_world, L.parent_index);
+
+    glm::vec2 center_R = solve_in_bone_space(
+        eye_rest_global_R, eye_rest_world_rot_R,
+        mid, target_world, R.parent_index);
+
+    // Blend: close = per-eye (converge), far = center (parallel)
+    raw_L = glm::mix(raw_L, center_L, vergence_t);
+    raw_R = glm::mix(raw_R, center_R, vergence_t);
+
+    update_eye_jitter(dt);
+
+    raw_L += saccade_offset;
+    raw_R += saccade_offset;
+
+    // ── Elliptic clamp ─────────────────────────────────────────────────────
     glm::vec2 clamped_L = apply_elliptic_clamp(raw_L, true);
     glm::vec2 clamped_R = apply_elliptic_clamp(raw_R, false);
 
+    // ── Anti-crossover guard ───────────────────────────────────────────────
+    // In your skeleton's parent space left eye yaw >= right eye yaw always.
+    // If they've crossed, collapse to midpoint.
+    if (clamped_L.y < clamped_R.y)
+    {
+        float mid_yaw   = (clamped_L.y + clamped_R.y) * 0.5f;
+        float mid_pitch = (clamped_L.x + clamped_R.x) * 0.5f;
+        clamped_L = glm::vec2(mid_pitch, mid_yaw);
+        clamped_R = glm::vec2(mid_pitch, mid_yaw);
+    }
+
+    // ── Smooth ─────────────────────────────────────────────────────────────
     const float eye_speed = 12.0f;
     float s = 1.0f - std::exp(-eye_speed * dt);
 
     eye_smoothed_angles_L = glm::mix(eye_smoothed_angles_L, clamped_L, s);
     eye_smoothed_angles_R = glm::mix(eye_smoothed_angles_R, clamped_R, s);
 
+    // ── Second crossover guard on smoothed angles ──────────────────────────
+    if (eye_smoothed_angles_L.y < eye_smoothed_angles_R.y)
+    {
+        float mid_yaw   = (eye_smoothed_angles_L.y + eye_smoothed_angles_R.y) * 0.5f;
+        float mid_pitch = (eye_smoothed_angles_L.x + eye_smoothed_angles_R.x) * 0.5f;
+        eye_smoothed_angles_L = glm::vec2(mid_pitch, mid_yaw);
+        eye_smoothed_angles_R = glm::vec2(mid_pitch, mid_yaw);
+    }
+
     debug_eye_yaw_L = eye_smoothed_angles_L.y;
     debug_eye_yaw_R = eye_smoothed_angles_R.y;
 
-    // VRM pitch negated on apply
     L.local_rot = angles_to_parent_local(
         -eye_smoothed_angles_L.x,
          eye_smoothed_angles_L.y,
@@ -362,3 +449,11 @@ void apply_look_at(
 
 float get_left_eye_yaw()  { return debug_eye_yaw_L; }
 float get_right_eye_yaw() { return debug_eye_yaw_R; }
+void set_look_at_distances(float near, float far)
+{
+    near_dist = near;
+    far_dist  = far;
+    std::cout << "[LookAt] Distances — near: " << near_dist
+              << "  far: " << far_dist << std::endl;
+}
+

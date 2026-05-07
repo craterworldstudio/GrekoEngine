@@ -45,5 +45,6 @@ void apply_manual_eye_pose(
 
 float get_left_eye_yaw() ;
 float get_right_eye_yaw();
+void set_look_at_distances(float near, float far);
 
 void init_look_at(int left_eye_index, int right_eye_index);

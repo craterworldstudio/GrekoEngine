@@ -7,24 +7,32 @@ Roadmap until idk i have added everything
 > Improve or restructure the Animation Buffer if needed
 > Add Import Support for VRMA files. and incorporate them into the engine.
 
-🔥 STAGE 1 (Foundation)
+STAGE 1 (Foundation)
 Scene/Entity Manager - DONE
 Component structure - DONE
 GUI selection of entities - DONE
 Basic Shape rendering - DONE
 
-🔥 STAGE 2 (Character Intelligence)
-Improve LookAt
-Eye clamps
-Head/Eye cooperation
-Optional spine weight
+STAGE 2 (Character Intelligence)
+Improve LookAt - DONE
+Eye clamps - DONE
+Head/Eye cooperation - DONE
+Optional spine weight - DONE
 
-🔥 STAGE 3 (Animation System Growth)
+STAGE 3 (Engine Views)
+New and Improved Shaders
+Better Lighting
+Controllable Toon Like Lighting GUI
+
+STAGE 4 (Additional VRM0.x SUpport)
+VRM0.x support which will be selectable from the Launcher GUI
+
+STAGE 5 (Animation System Growth)
 Improve Animation Buffer
 Introduce layered blending
 Move LookAt to be additive
 
-🔥 STAGE 4 (Content Support)
+STAGE 6 (Content Support)
 VRMA parsing
 Clip playback
 Clip blending
