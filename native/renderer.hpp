@@ -43,6 +43,10 @@ enum TransformAuthority {
     AUTH_NATIVE = 1
 };
 
+extern glm::vec3 g_lightDirection;
+extern glm::vec3 g_lightColor;
+extern glm::vec3 g_ambientColor;
+
 extern std::vector<int> entity_authority;
 
 // Functions

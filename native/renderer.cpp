@@ -83,6 +83,10 @@ std::vector<glm::vec3> entity_positions;
 std::vector<glm::vec3> entity_rotations; // Euler degrees for UI
 std::vector<glm::vec3> entity_scales;
 
+glm::vec3 g_lightDirection = glm::vec3(-0.3f, -1.0f, -0.2f); 
+glm::vec3 g_lightColor = glm::vec3(1.0f); 
+glm::vec3 g_ambientColor = glm::vec3(0.18f, 0.18f, 0.22f);
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -261,8 +265,8 @@ GLuint compile_shader_source(const std::string& src, GLenum type) {
 }
 
 void setup_debug_shader() {
-    GLuint vs = compile_shader_source(SHADER_TEXTEST_VERT, GL_VERTEX_SHADER); //compile_shader((g_shader_base_path + "Textest.vert").c_str(), GL_VERTEX_SHADER);
-    GLuint fs = compile_shader_source(SHADER_TEXTEST_FRAG, GL_FRAGMENT_SHADER); //compile_shader((g_shader_base_path + "Textest.frag").c_str(), GL_FRAGMENT_SHADER);
+    GLuint vs = compile_shader_source(SHADER_WS1_VERT, GL_VERTEX_SHADER); //compile_shader((g_shader_base_path + "Textest.vert").c_str(), GL_VERTEX_SHADER);
+    GLuint fs = compile_shader_source(SHADER_WS1_FRAG, GL_FRAGMENT_SHADER); //compile_shader((g_shader_base_path + "Textest.frag").c_str(), GL_FRAGMENT_SHADER);
 
     shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vs);
@@ -490,11 +494,11 @@ void draw_scene() {
 
     if (editMode) {
         ImGui::SetNextWindowPos(ImVec2(0, 180));
-        ImGui::SetNextWindowSize(ImVec2(400, 600));
+        ImGui::SetNextWindowSize(ImVec2(300, 600));
         ImGui::Begin("Bone Inspector", nullptr,
         ImGuiWindowFlags_NoMove 
         | ImGuiWindowFlags_NoResize
-        | ImGuiWindowFlags_NoCollapse 
+        //| ImGuiWindowFlags_NoCollapse 
         //| ImGuiWindowFlags_AlwaysAutoResize
         );
         
@@ -689,10 +693,68 @@ void draw_scene() {
         }
 
         ImGui::End();
-    }
+            
 
+        ImGuiViewport* viewport = ImGui::GetMainViewport(); 
+        float windowWidth = 320.0f; float padding = 10.0f; 
+        ImGui::SetNextWindowPos( ImVec2( viewport->WorkSize.x - windowWidth - padding, 10.0f ) ); 
+        ImGui::SetNextWindowSize( ImVec2(windowWidth, 240) );
+            
+        ImGui::Begin(
+            "Lighting Controls",
+            nullptr,
+            ImGuiWindowFlags_NoCollapse
+        );
+        
+        // ==========================
+        // Directional Light
+        // ==========================
+        ImGui::Text("Directional Light");
+        
+        ImGui::DragFloat3(
+            "Light Direction",
+            &g_lightDirection.x,
+            0.01f,
+            -1.0f,
+            1.0f
+        );
+        
+        // Normalize so lighting stays stable
+        g_lightDirection = glm::normalize(g_lightDirection);
+        
+        // ==========================
+        // Light Color
+        // ==========================
+        ImGui::ColorEdit3(
+            "Light Color",
+            &g_lightColor.x
+        );
+        
+        // ==========================
+        // Ambient
+        // ==========================
+        ImGui::ColorEdit3(
+            "Ambient Color",
+            &g_ambientColor.x
+        );
+
+        ImGui::End();
+    }
+    
 
     glUseProgram(shaderProgram);
+
+    // ========================== 
+    // Toon Lighting Uniforms 
+    // ========================== 
+
+    glUniform3fv( glGetUniformLocation(shaderProgram, "uLightDirection"), 1, glm::value_ptr(g_lightDirection)); 
+    glUniform3fv( glGetUniformLocation(shaderProgram, "uLightColor"),     1, glm::value_ptr(g_lightColor)); 
+    glUniform3fv( glGetUniformLocation(shaderProgram, "uAmbientColor"),   1, glm::value_ptr(g_ambientColor));
+
+    // ==============================
+    //       DATA -> CAMERA
+    // ==============================
 
     glm::mat4 view = main_camera.get_view();
     glm::mat4 proj = main_camera.get_projection();
