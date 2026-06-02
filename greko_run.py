@@ -1,3 +1,4 @@
+#greko_run.py
 #from datetime import time
 import time as timen
 import math
@@ -9,6 +10,9 @@ import numpy as np
 #from core import skeleton
 import importlib.util
 import sys
+
+from core import skeleton
+from core.utils.vrmdata import export_vrm_debug
 
 def resource_path(relative):
     if hasattr(sys, "_MEIPASS"):
@@ -60,9 +64,13 @@ def choose_vrm(folder):
 #gn = load_native("")
 
 from core.glb_parser import parse_glb
+from core.vrm0_loader import load_vrm0
+from core.vrm_adapter import adapt_vrm
 from core.skeleton import Skeleton
+from core.vrm0_skeleton import VRM0Skeleton
 from core.behaviours_manager import MorphBehaviorManager, SkeletonBehaviorManager
 from core.mesh_data import package_mesh
+from core.vrm0_mesh import package_vrm0_mesh
 from core.animator import Animator
 
 from core.scene import Scene, UpdateContext
@@ -100,10 +108,78 @@ class Engine:
         )
 
         self.parsed_data = parse_glb(vrm_path)
-        print("🦴 Building Skeleton...")
-        self.skeleton = Skeleton(self.gn, self.parsed_data.json, self.parsed_data.bin_blob)
-        print("Joint names:", self.skeleton.joint_names[:5])
-        print("Joint count:", len(self.skeleton.joint_nodes))
+        #self.vrm_data = adapt_vrm(self.parsed_data)
+
+        from core.utils.vrmdata import export_vrm_debug
+
+        if self.parsed_data.vrm_version == 0:
+            #export_vrm_debug(self.parsed_data)
+            print("⚠️ Detected VRM0 format. Applying VRM0-specific processing...")
+            
+            self.parsed_data = load_vrm0(vrm_path)
+
+            print("\n===== VRM0 DEBUG =====")
+
+            print("Meshes:", len(self.parsed_data.json.get("meshes", [])))
+            print("Nodes:", len(self.parsed_data.json.get("nodes", [])))
+            print("Skins:", len(self.parsed_data.json.get("skins", [])))
+
+            skin0 = self.parsed_data.json["skins"][0]
+            skin1 = self.parsed_data.json["skins"][1]
+
+            #print("Skin joints:", len(skin0["joints"]))
+            #print("First 20 skin 0 joints:", skin0["joints"][:20])
+            #print("Skin 1 joints:", len(skin1["joints"]))
+            #print("First 20 skin 1 joints:", skin1["joints"][:20])
+
+            
+
+            # TEST FIRST MESH
+            mesh = self.parsed_data.json["meshes"][0]
+            primitive = mesh["primitives"][0]
+
+            attrs = primitive["attributes"]
+
+            from core.vrm0_accessor import read_accessor
+
+            joints = read_accessor(
+                self.parsed_data.json,
+                self.parsed_data.bin_blob,
+                attrs["JOINTS_0"]
+            )
+
+            joints = np.array(joints)
+
+            #unique = np.unique(joints)
+#
+            #print("UNIQUE JOINT COUNT:", len(unique))
+            #print("FIRST 50 UNIQUE:", unique[:50])
+#
+            #print("======================\n")
+
+            print("🦴 Building Skeleton...")
+
+            
+            self.skeleton = VRM0Skeleton(
+                self.gn,
+                self.parsed_data.json,
+                self.parsed_data.bin_blob
+            )
+
+            counts = np.bincount(joints.flatten())
+
+            used = np.where(counts > 0)[0]
+
+            print("Highest 50 GPU joints used:")
+            print(used[-50:])
+            
+
+        else:
+            print("⚠️ Detected VRM1 format. Applying VRM1-specific processing...")
+            print("🦴 Building Skeleton...")    
+            self.skeleton = Skeleton(self.gn, self.parsed_data.json, self.parsed_data.bin_blob)
+            print("Joint names:", self.skeleton.joint_names[:5])
+            print("Joint count:", len(self.skeleton.joint_nodes))
 
         self.gn.set_joint_names(self.skeleton.joint_names)
         self.gn.set_joint_count(len(self.skeleton.joint_nodes))
@@ -119,11 +195,51 @@ class Engine:
         render_parts = []
         primitive_count = 0
 
+        mesh_to_skin = {}
+
+        for node_idx, node in enumerate(self.parsed_data.json["nodes"]):
+            if "mesh" in node:
+                print( "NODE", node_idx, "MESH", node.get("mesh"), "SKIN", node.get("skin")
+                )
+            if "mesh" in node and "skin" in node:
+            
+                mesh_index = node["mesh"]
+                skin_index = node["skin"]
+
+                mesh_to_skin[mesh_index] = skin_index
+
+                print(
+                    f"[VRM0] Mesh {mesh_index} uses Skin {skin_index}"
+                )
+
         for mesh_idx, mesh in enumerate(self.parsed_data.json["meshes"]):
             mesh_name = mesh.get("name", f"Mesh_{mesh_idx}")
 
             for prim_idx, primitive in enumerate(mesh["primitives"]):
-                packed = package_mesh(self.parsed_data.json, self.parsed_data.bin_blob, primitive)
+                if self.parsed_data.vrm_version == 0:
+
+                    skin_index = mesh_to_skin.get(mesh_idx, 0)
+                    if skin_index == 2:
+                        continue
+                    
+                    packed = package_vrm0_mesh(
+                        self.parsed_data.json,
+                        self.parsed_data.bin_blob,
+                        primitive,
+                        mesh,
+                        self.skeleton,
+                        skin_index
+                    )
+
+                    
+
+                else:
+                    packed = package_mesh(
+                        self.parsed_data.json,
+                        self.parsed_data.bin_blob,
+                        primitive,
+                        mesh
+                    )
 
                 # FLAG: Check for transparency tags
                 # We look at the mesh name or the material index to identify face parts
@@ -144,7 +260,8 @@ class Engine:
                     "indices": packed['indices'],
                     "morph_targets": packed['morph_targets'],
                     "tex_id": tex_id,
-                    "transparent": is_transparent # Tag it for sorting
+                    "transparent": is_transparent, # Tag it for sorting
+                    "vertex_count": int(packed["vertices"].shape[0])
                 })
 
                 primitive_count += 1
@@ -201,7 +318,8 @@ class Engine:
                 part["indices"],
                 upload_list,
                 part["tex_id"],
-                self.scene.get_all().index(self.model_entity)
+                self.scene.get_all().index(self.model_entity),
+                part["vertex_count"]
             )
 
     def init_entities(self):
@@ -301,7 +419,7 @@ if __name__ == "__main__":
     import core.greko_native as gn
     cfg = json.load(open('./config.json', 'r'))
 
-    engine = Engine(gn, "./assets/kisayov2.vrm")
+    engine = Engine(gn, "./assets/furina.vrm")
     engine.eye_constraints = cfg.get("eye_constraints", engine.eye_constraints)
     engine.init_entities()
     engine.gameloop()

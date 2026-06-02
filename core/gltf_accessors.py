@@ -115,4 +115,13 @@ def read_accessor(
         else:
             results.append(values)
 
+    #print("ACCESSOR", accessor_index)
+    #print("TYPE:", accessor_type)
+    #print("COMPONENT:", component_type)
+    #print("COUNT:", count)
+    #print("STRIDE:", stride)
+    #print("ELEMENT SIZE:", element_size)
+    #print("BUFFER VIEW OFFSET:", bv.get("byteOffset", 0))
+    #print("ACCESSOR OFFSET:", accessor_offset)
+
     return results

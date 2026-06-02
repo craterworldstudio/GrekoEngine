@@ -1,0 +1,365 @@
+{
+    "vrm_version": 0,
+    "humanoid_map": {
+        "hips": 15,
+        "spine": 16,
+        "chest": 38,
+        "neck": 39,
+        "head": 40,
+        "leftEye": 44,
+        "rightEye": 42,
+        "leftUpperLeg": 224,
+        "leftLowerLeg": 225,
+        "leftFoot": 226,
+        "leftToes": 227,
+        "rightUpperLeg": 219,
+        "rightLowerLeg": 220,
+        "rightFoot": 221,
+        "rightToes": 222,
+        "leftShoulder": 106,
+        "leftUpperArm": 108,
+        "leftLowerArm": 113,
+        "leftHand": 118,
+        "rightShoulder": 146,
+        "rightUpperArm": 148,
+        "rightLowerArm": 153,
+        "rightHand": 158,
+        "leftThumbProximal": 138,
+        "leftThumbIntermediate": 139,
+        "leftThumbDistal": 140,
+        "leftIndexProximal": 121,
+        "leftIndexIntermediate": 122,
+        "leftIndexDistal": 123,
+        "leftMiddleProximal": 125,
+        "leftMiddleIntermediate": 126,
+        "leftMiddleDistal": 127,
+        "leftRingProximal": 129,
+        "leftRingIntermediate": 130,
+        "leftRingDistal": 131,
+        "leftLittleProximal": 133,
+        "leftLittleIntermediate": 134,
+        "leftLittleDistal": 135,
+        "rightThumbProximal": 178,
+        "rightThumbIntermediate": 179,
+        "rightThumbDistal": 180,
+        "rightIndexProximal": 161,
+        "rightIndexIntermediate": 162,
+        "rightIndexDistal": 163,
+        "rightMiddleProximal": 165,
+        "rightMiddleIntermediate": 166,
+        "rightMiddleDistal": 167,
+        "rightRingProximal": 169,
+        "rightRingIntermediate": 170,
+        "rightRingDistal": 171,
+        "rightLittleProximal": 173,
+        "rightLittleIntermediate": 174,
+        "rightLittleDistal": 175
+    },
+    "blendshapes": {
+        "neutral": [
+            {
+                "mesh": 1,
+                "morph_index": 4,
+                "weight": 50
+            },
+            {
+                "mesh": 1,
+                "morph_index": 5,
+                "weight": 50
+            },
+            {
+                "mesh": 1,
+                "morph_index": 38,
+                "weight": 60.0000038
+            }
+        ],
+        "a": [
+            {
+                "mesh": 1,
+                "morph_index": 29,
+                "weight": 80
+            }
+        ],
+        "i": [
+            {
+                "mesh": 1,
+                "morph_index": 33,
+                "weight": 60.0000038
+            }
+        ],
+        "u": [
+            {
+                "mesh": 1,
+                "morph_index": 33,
+                "weight": 50
+            }
+        ],
+        "e": [
+            {
+                "mesh": 1,
+                "morph_index": 31,
+                "weight": 100
+            }
+        ],
+        "o": [
+            {
+                "mesh": 1,
+                "morph_index": 29,
+                "weight": 50
+            },
+            {
+                "mesh": 1,
+                "morph_index": 30,
+                "weight": 50
+            }
+        ],
+        "blink": [
+            {
+                "mesh": 1,
+                "morph_index": 10,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 11,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 18,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 19,
+                "weight": 100
+            }
+        ],
+        "joy": [
+            {
+                "mesh": 1,
+                "morph_index": 0,
+                "weight": 1
+            },
+            {
+                "mesh": 1,
+                "morph_index": 2,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 3,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 14,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 15,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 32,
+                "weight": 80
+            },
+            {
+                "mesh": 1,
+                "morph_index": 33,
+                "weight": 54.7
+            }
+        ],
+        "angry": [
+            {
+                "mesh": 1,
+                "morph_index": 4,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 5,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 10,
+                "weight": 50
+            },
+            {
+                "mesh": 1,
+                "morph_index": 11,
+                "weight": 50
+            },
+            {
+                "mesh": 1,
+                "morph_index": 20,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 23,
+                "weight": 60.0000038
+            },
+            {
+                "mesh": 1,
+                "morph_index": 34,
+                "weight": 50
+            },
+            {
+                "mesh": 1,
+                "morph_index": 49,
+                "weight": 100
+            }
+        ],
+        "sorrow": [
+            {
+                "mesh": 1,
+                "morph_index": 0,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 1,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 10,
+                "weight": 80
+            },
+            {
+                "mesh": 1,
+                "morph_index": 11,
+                "weight": 80
+            },
+            {
+                "mesh": 1,
+                "morph_index": 22,
+                "weight": 20
+            },
+            {
+                "mesh": 1,
+                "morph_index": 44,
+                "weight": 53.8999977
+            }
+        ],
+        "fun": [
+            {
+                "mesh": 1,
+                "morph_index": 2,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 3,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 20,
+                "weight": 70
+            },
+            {
+                "mesh": 1,
+                "morph_index": 32,
+                "weight": 60.0000038
+            },
+            {
+                "mesh": 1,
+                "morph_index": 43,
+                "weight": 35.5
+            }
+        ],
+        "lookup": [],
+        "lookdown": [],
+        "lookleft": [],
+        "lookright": [],
+        "blink_l": [
+            {
+                "mesh": 1,
+                "morph_index": 10,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 15,
+                "weight": 0.2
+            },
+            {
+                "mesh": 1,
+                "morph_index": 18,
+                "weight": 100
+            }
+        ],
+        "blink_r": [
+            {
+                "mesh": 1,
+                "morph_index": 11,
+                "weight": 100
+            },
+            {
+                "mesh": 1,
+                "morph_index": 17,
+                "weight": 100
+            }
+        ]
+    },
+    "mesh_morphs": {
+        "U_Char_0.baked": {},
+        "U_Char_1.baked": {
+            "0": "0.困る左",
+            "1": "1.困る右",
+            "2": "2.にこり左",
+            "3": "3.にこり右",
+            "4": "4.怒り左",
+            "5": "5.怒り右",
+            "6": "6.恥ずかしい左",
+            "7": "7.恥ずかしい右",
+            "8": "8.上左",
+            "9": "9.上右",
+            "10": "10.下左",
+            "11": "11.下右",
+            "12": "12.前左",
+            "13": "13.前右",
+            "14": "14.ウィンク",
+            "15": "15.ウィンク右",
+            "16": "16.ウィンク２",
+            "17": "17.ウィンク２右",
+            "18": "18.なごみ左",
+            "19": "19.なごみ右",
+            "20": "20.びっくり",
+            "21": "21.じと目",
+            "22": "22.悲しむ",
+            "23": "23.怒り目",
+            "24": "24.ジト目",
+            "25": "25.眼角上",
+            "26": "26.眼角下",
+            "27": "27.下眼上",
+            "28": "28.Mouth_Default",
+            "29": "29.あ",
+            "30": "30.え",
+            "31": "31.い",
+            "32": "32.にやり",
+            "33": "33.ワ",
+            "34": "34.ん",
+            "35": "35.い１",
+            "36": "36.い２",
+            "37": "37.あ２",
+            "38": "38.にやり２",
+            "39": "39.にやり３",
+            "40": "40.ω",
+            "41": "41.てへぺろ",
+            "42": "42.ぺろっ",
+            "43": "43.口横広げ",
+            "44": "44.口横狭め",
+            "45": "45.Mouth_BigTongue01",
+            "46": "46.あ.001",
+            "47": "47.口横狭め.001",
+            "48": "48.あ.002",
+            "49": "49.口横狭め.002"
+        }
+    }
+}

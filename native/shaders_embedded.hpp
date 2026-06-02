@@ -271,7 +271,13 @@ layout (location = 8) in vec3 aMorph3; // Buffer
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-uniform mat4 uJointMatrices[200];
+uniform mat4 uJointMatrices[1000]; // Array of joint transformation matrices
+//layout(std430, binding = 0)
+//buffer JointBuffer
+//{
+//    mat4 uJointMatrices[];
+//};
+
 uniform vec4 uMorphWeights; // [w0, w1, w2, w3]
 
 // ==========================
@@ -304,6 +310,8 @@ void main()
             aWeights.y * uJointMatrices[aJoints.y] +
             aWeights.z * uJointMatrices[aJoints.z] +
             aWeights.w * uJointMatrices[aJoints.w];
+
+        vec4 pos = vec4(aPos,1.0);
     }
 
     // FLAG: The "Forehead Eye" Fix
@@ -323,6 +331,7 @@ void main()
 
     gl_Position = projection * view * model * skinnedPos;
 }
+
 )GLSL";
 
 //── WS1 FRAG ─────────────────────────────────────────────────

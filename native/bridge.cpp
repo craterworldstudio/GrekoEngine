@@ -28,7 +28,8 @@ void upload_mesh_to_gpu(
     py::array_t<uint32_t> indices,
     py::list morph_list, // FLAG: Changed to py::list for multiple arrays
     int tex_id,
-    int entity_index
+    int entity_index,
+    int vertex_count
 ) {
     auto v_ptr = vertices.data();
     auto n_ptr = normals.data();

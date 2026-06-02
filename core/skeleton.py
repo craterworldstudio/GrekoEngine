@@ -3,19 +3,62 @@ from core.gltf_accessors import read_accessor
 #import core.greko_native as gn
 
 class Skeleton:
-    def __init__(self, gn, json_data, bin_blob):
+    def __init__(self, gn, json_data, bin_blob, vrm_data=None):
         self.gn = gn
         self.nodes = json_data.get("nodes", [])
-        skin = json_data.get("skins", [0])[0] if json_data.get("skins") else {}
+        #skin = json_data.get("skins", [0])[0] if json_data.get("skins") else {}
+        skins = json_data.get("skins", [])
+        skin = skins[0] if skins else {}
         self.joint_nodes = skin.get("joints", [])
         self.joint_names = [self.nodes[idx].get("name", f"Joint_{i}") for i, idx in enumerate(self.joint_nodes)]
-        
+        self.vrm_data = vrm_data
+
+        self.humanoid_bones = {}
+
+        if vrm_data:
+            humanoid = vrm_data.get("humanoid", {})
+            human_bones = humanoid.get("humanBones", [])
+
+            # VRM1 format
+            if isinstance(human_bones, dict):
+            
+                for bone_name, bone_data in human_bones.items():
+                    node = bone_data.get("node")
+
+                    if node is not None:
+                        self.humanoid_bones[bone_name] = node
+
+            # VRM0 format
+            elif isinstance(human_bones, list):
+            
+                for bone in human_bones:
+                    bone_name = bone.get("bone")
+                    node = bone.get("node")
+
+                    if bone_name and node is not None:
+                        self.humanoid_bones[bone_name] = node
         
         # We will let C++ handle the layout.
         ibm_accessor_idx = skin.get("inverseBindMatrices")
-        raw_ibms = read_accessor(json_data, bin_blob, ibm_accessor_idx) # type: ignore
-        # Just keep it as a flat array of floats
-        self.inverse_bind_matrices = np.array(raw_ibms, dtype=np.float32).reshape(-1, 16)
+        #raw_ibms = read_accessor(json_data, bin_blob, ibm_accessor_idx) # type: ignore
+        ## Just keep it as a flat array of floats
+        #self.inverse_bind_matrices = np.array(raw_ibms, dtype=np.float32).reshape(-1, 16)
+
+        if ibm_accessor_idx is not None:
+            raw_ibms = read_accessor(json_data, bin_blob, ibm_accessor_idx)
+
+            self.inverse_bind_matrices = (
+                np.array(raw_ibms, dtype=np.float32)
+                .reshape(-1, 16)
+            )
+
+        else:
+            print("⚠️ Missing inverseBindMatrices")
+
+            self.inverse_bind_matrices = np.array([
+                np.identity(4, dtype=np.float32).flatten()
+                for _ in self.joint_nodes
+            ], dtype=np.float32)
 
         rest_positions = []
         rest_rotations = []
@@ -34,11 +77,13 @@ class Skeleton:
             for child_idx in node.get("children", []):
                 self.parent_map[child_idx] = node_idx
 
-        node_to_joint_idx = {node_idx: i for i, node_idx in enumerate(self.joint_nodes)}
+        #node_to_joint_idx = {node_idx: i for i, node_idx in enumerate(self.joint_nodes)}
+        self.node_to_joint_idx = { node_idx: i for i, node_idx in enumerate(self.joint_nodes)}
+        
         self.joint_parents = []
         for node_idx in self.joint_nodes:
             parent_node = self.parent_map.get(node_idx)
-            self.joint_parents.append(node_to_joint_idx.get(parent_node, -1))
+            self.joint_parents.append(self.node_to_joint_idx.get(parent_node, -1))
 
         # 3. SHIP IT TO C++ IMMEDIATELY
         self.gn.setup_cpp_skeleton(

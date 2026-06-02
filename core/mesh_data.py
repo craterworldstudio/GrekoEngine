@@ -1,7 +1,7 @@
 import numpy as np
 from core.gltf_accessors import read_accessor
 
-def package_mesh(gltf_json, bin_blob, primitive_data):
+def package_mesh(gltf_json, bin_blob, primitive_data, mesh_data=None):
     attrs = primitive_data["attributes"]
 
     # === Geometry ===
@@ -9,6 +9,7 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
         read_accessor(gltf_json, bin_blob, attrs["POSITION"]),
         dtype=np.float32
     )
+    vertex_count = pos.shape[0]
 
     if "NORMAL" in attrs:
         normals = np.array(
@@ -24,7 +25,11 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
         dtype=np.float32
     )
     # Morph Target Extraction    
-    target_names = gltf_json.get("meshes", [{}])[0].get("extras", {}).get("targetNames", [])
+    #target_names = gltf_json.get("meshes", [{}])[0].get("extras", {}).get("targetNames", [])
+    target_names = []
+
+    if mesh_data:
+        target_names = mesh_data.get("extras", {}).get("targetNames", [])
     all_morphs = {}
 
     if "targets" in primitive_data:
@@ -66,6 +71,7 @@ def package_mesh(gltf_json, bin_blob, primitive_data):
         # MATERIAL
         "texture": texture_bytes,
         "base_color_factor": base_color_factor,
+        "vertex_count": vertex_count,
     }
 
 

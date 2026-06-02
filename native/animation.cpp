@@ -6,14 +6,14 @@
 // FLAG: The Actual Memory Definitions
 // These must exist in exactly one .cpp file without the 'extern' keyword
 int joint_count = 0;
-glm::mat4 joint_matrices[256];
+glm::mat4 joint_matrices[MAX_GPU_JOINTS];
 std::vector<std::string> joint_names;
 std::vector<Bone> skeleton_bones;
 
 void init_skeleton() {
     // Reset bones and set identity matrices
     skeleton_bones.clear();
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < MAX_GPU_JOINTS; i++) {
         joint_matrices[i] = glm::mat4(1.0f);
     }
 }
@@ -40,7 +40,7 @@ void update_skeleton_hierarchy() {
 
         // 3. Prepare for Shader (Skinning)
         // We multiply by Inverse Bind to move vertices from Model Space to Bone Space
-        if (i < 256) {
+        if (i < MAX_GPU_JOINTS) {
             joint_matrices[i] =  skeleton_bones[i].global_matrix * skeleton_bones[i].inverse_bind_matrix;
         }
     }
@@ -49,7 +49,7 @@ void update_skeleton_hierarchy() {
 // Keep this for backward compatibility with your existing animator
 void update_joints_from_buffer(const float* data, int count) {
     int num_matrices = count / 16;
-    if (num_matrices > 256) num_matrices = 256;
+    if (num_matrices > MAX_GPU_JOINTS) num_matrices = MAX_GPU_JOINTS;
     joint_count = num_matrices;
 
     for (int i = 0; i < num_matrices; i++) {

@@ -83,7 +83,7 @@ std::vector<glm::vec3> entity_positions;
 std::vector<glm::vec3> entity_rotations; // Euler degrees for UI
 std::vector<glm::vec3> entity_scales;
 
-glm::vec3 g_lightDirection = glm::vec3(-0.3f, -1.0f, -0.2f); 
+glm::vec3 g_lightDirection = glm::vec3(-0.586f, -0.343f, 0.734f); 
 glm::vec3 g_lightColor = glm::vec3(1.0f, 0.941176f, 0.862745f); 
 glm::vec3 g_ambientColor = glm::vec3(0.2353f, 0.2549f, 0.3137f); 
 glm::vec3 g_shadowColor = glm::vec3(0.7843f, 0.6275f, 0.6863f); // Warm pinkish shadow tint — Genshin signature
@@ -773,6 +773,7 @@ void draw_scene() {
     GLint jointLoc = glGetUniformLocation(shaderProgram, "uJointMatrices");
     if (jointLoc != -1)
         glUniformMatrix4fv(jointLoc, joint_count, GL_FALSE, glm::value_ptr(joint_matrices[0]));
+        //std::cout << "🦴 Renderer: Updated " << joint_count << " joint matrices." << std::endl;
 
     // ============================================================
     // PER-MESH DRAW

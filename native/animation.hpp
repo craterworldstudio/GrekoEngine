@@ -22,7 +22,9 @@ struct Bone {
     glm::mat4 inverse_bind_matrix;
 };
 
-extern glm::mat4 joint_matrices[256];
+constexpr int MAX_GPU_JOINTS = 1000;
+
+extern glm::mat4 joint_matrices[MAX_GPU_JOINTS];
 extern int joint_count;
 extern std::vector<std::string> joint_names;
 extern std::vector<Bone> skeleton_bones;

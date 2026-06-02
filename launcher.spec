@@ -23,6 +23,7 @@ hidden_imports += [
     'core.components.camera',
     'core.components.mesh',
     'core.gltf_accessors',
+    'core.vrm_adapter',
     'greko_run',
     'numpy',
     'tkinter',

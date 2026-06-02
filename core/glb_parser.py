@@ -16,8 +16,24 @@ class ParsedGLB:
     bin_blob: Optional[memoryview]
     header: dict
 
+    vrm_version: int = -1
+    vrm_extension: Optional[dict] = None
+
 class GLBParseError(RuntimeError):
     pass
+
+def detect_vrm(json_chunk: dict):
+    exts = json_chunk.get("extensions", {})
+
+    # VRM1
+    if "VRMC_vrm" in exts:
+        return 1, exts["VRMC_vrm"]
+
+    # VRM0
+    if "VRM" in exts:
+        return 0, exts["VRM"]
+
+    return -1, None
 
 
 def parse_glb(path: str | Path) -> ParsedGLB:
@@ -104,8 +120,14 @@ def parse_glb(path: str | Path) -> ParsedGLB:
     else:
         print("[GLB] No BIN chunk present")
 
+    vrm_version, vrm_ext = detect_vrm(json_chunk)
+
+    print(f"[VRM] Detected version: {vrm_version}")
+    
     return ParsedGLB(
         json=json_chunk,
         bin_blob=bin_chunk,
         header=header,
+        vrm_version=vrm_version,
+        vrm_extension=vrm_ext,
     )
