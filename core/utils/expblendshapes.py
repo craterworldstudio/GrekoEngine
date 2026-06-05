@@ -1,4 +1,4 @@
-# read_named_blendshapes.py
+# read_named_blendshapes.py (FOR VRM1)
 import json
 import sys
 import os

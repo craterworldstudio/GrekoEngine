@@ -107,95 +107,123 @@ class SkeletonBehaviorManager:
 # MORPH BEHAVIOR MANAGER
 # ==========================================
 class MorphBehaviorManager:
-    def __init__(self):
+    def __init__(self, skeleton, gn, vrm_version=2):
+        # Cache skeleton context across the lifecycles
+        self.skeleton = skeleton
+        self.gn = gn
+        self.vrm_version = vrm_version
         self.active_behaviors = []
         self.face_mesh_indices = []
 
-    def load_behaviors(self):
+    def load_behaviors(self, *args, **kwargs):
         self.active_behaviors.clear()
 
         for module_name, module in get_behaviour_modules():
             for name, obj in inspect.getmembers(module, inspect.isclass):
-
                 if (
                     issubclass(obj, BehaviorBase)
                     and obj is not BehaviorBase
+                    and not issubclass(obj, SkeletonBehaviorBase) # Prevent overlap leaks
                 ):
                     try:
                         instance = obj()
+                        
+                        # FIX: Execute the new decoupled setup pipeline
+                        instance.setup(
+                            self.skeleton,
+                            self.gn,
+                            self.vrm_version,
+                            *args,
+                            **kwargs
+                        )
+                        
                         self.active_behaviors.append(instance)
-
-                        print(
-                            f"🧩 Loaded Morph Behavior: "
-                            f"{name} from {module_name}"
-                        )
-
+                        print(f"🧩 Loaded Morph Behavior: {name} from {module_name}")
                     except Exception as e:
-                        print(
-                            f"❌ Failed morph behavior "
-                            f"{name}: {e}"
-                        )
+                        print(f"❌ Failed morph behavior {name}: {e}")
 
     def inject_morph_library(self, library):
         for behavior in self.active_behaviors:
-
             if hasattr(behavior, "morph_library"):
                 behavior.morph_library = library
-                print(
-                    f"📖 Library injected into "
-                    f"{type(behavior).__name__}"
-                )
+                print(f"📖 Library injected into {type(behavior).__name__}")
 
             if hasattr(behavior, "face_indices"):
                 behavior.face_indices = self.face_mesh_indices
-                print(
-                    f"🎯 Assigned Face Indices "
-                    f"{self.face_mesh_indices} to "
-                    f"{type(behavior).__name__}"
-                )
+                print(f"🎯 Assigned Face Indices {self.face_mesh_indices} to {type(behavior).__name__}")
 
     def trigger_mouth_sequence(self, filename):
         for behavior in self.active_behaviors:
             if type(behavior).__name__ == "MouthSequencer":
                 behavior.load(filename)
-                print(
-                    f"🎬 Triggered mouth sequence: "
-                    f"{filename}"
-                )
+                print(f"🎬 Triggered mouth sequence: {filename}")
 
     def update(self, dt, context):
         gn = context.gn
 
+        # [0] Blink, [1] Breath, [2] Mouth/Viseme
         current_weights = [0.0, 0.0, 0.0, 0.0]
+
+        # Fetch the master blendshape map we parsed from the VRM asset JSON
+        # If it doesn't exist, fall back to an empty dictionary
+        vrm_blendshape_config = getattr(self.skeleton, "json", {}).get("extensions", {}).get("VRM", {}).get("blendShapeMaster", {}).get("blendShapeGroups", [])
+        
+        # Build a live runtime lookup map for VRM0: e.g., {"blink": [10, 11, 18, 19]}
+        vrm0_target_lookup = {}
+        if vrm_blendshape_config:
+            for group in vrm_blendshape_config:
+                preset_name = group.get("presetName", "").lower()
+                binds = group.get("binds", [])
+                if preset_name and binds:
+                    # Capture all target primitive morph indices for this preset
+                    vrm0_target_lookup[preset_name] = [int(b.get("index", 0)) for b in binds]
 
         for behavior in self.active_behaviors:
             try:
                 weights = behavior.update(gn)
-
                 if not weights:
                     continue
 
-                if "Fcl_EYE_Close" in weights:
-                    current_weights[0] = max(
-                        current_weights[0],
-                        weights["Fcl_EYE_Close"]
-                    )
+                b_name = type(behavior).__name__
 
-                if "Fcl_ALL_Surprised" in weights:
-                    current_weights[1] = max(
-                        current_weights[1],
-                        weights["Fcl_ALL_Surprised"]
-                    )
+                # ==========================================
+                # VRM 1.0 PATHWAY (Direct String Match)
+                # ==========================================
+                if "VRMC_vrm" in self.skeleton.json.get("extensions", {}):
+                    if b_name == "Blinker":
+                        target = getattr(behavior, "target_name", "Fcl_EYE_Close")
+                        if target in weights:
+                            current_weights[0] = max(current_weights[0], weights[target])
 
-                if "PHONEME_ACTIVE" in weights:
-                    current_weights[2] = max(
-                        current_weights[2],
-                        weights["PHONEME_ACTIVE"]
-                    )
+                    elif b_name == "Breather":
+                        target = getattr(behavior, "target_name", "Fcl_ALL_Surprised")
+                        if target in weights:
+                            current_weights[1] = max(current_weights[1], weights[target])
+
+                # ==========================================
+                # VRM 0.0 PATHWAY (Index Resolution)
+                # ==========================================
+                else:
+                    if b_name == "Blinker":
+                        # Behavior outputs {"blink": weight}
+                        if "blink" in weights and "blink" in vrm0_target_lookup:
+                            # Send raw weight value directly to C++ layout mapping position
+                            current_weights[0] = max(current_weights[0], weights["blink"])
+                            
+                            # FLAG: Direct Shader Uniform Drive
+                            # If your engine allows driving indices directly via C++, pass them here:
+                            for morph_idx in vrm0_target_lookup["blink"]:
+                                # gn.set_raw_mesh_morph(mesh_index=1, target_idx=morph_idx, weight=weights["blink"])
+                                pass
+
+                    elif b_name == "Breather":
+                        # Behavior outputs {"fun": weight}
+                        if "fun" in weights and "fun" in vrm0_target_lookup:
+                            current_weights[1] = max(current_weights[1], weights["fun"])
 
             except Exception as e:
-                print(
-                    f"❌ Morph update failed: {e}"
-                )
+                print(f"❌ Morph target weight resolution failed: {e}")
 
+        # Dispatch the processed unified parameters down to OpenGL
+        #print(current_weights)
         gn.set_morph_weights(*current_weights)

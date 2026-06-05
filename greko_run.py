@@ -109,7 +109,7 @@ class Engine:
 
         self.parsed_data = parse_glb(vrm_path)
         #self.vrm_data = adapt_vrm(self.parsed_data)
-
+        #print(self.parsed_data)
         from core.utils.vrmdata import export_vrm_debug
 
         if self.parsed_data.vrm_version == 0:
@@ -118,11 +118,11 @@ class Engine:
             
             self.parsed_data = load_vrm0(vrm_path)
 
-            print("\n===== VRM0 DEBUG =====")
-
-            print("Meshes:", len(self.parsed_data.json.get("meshes", [])))
-            print("Nodes:", len(self.parsed_data.json.get("nodes", [])))
-            print("Skins:", len(self.parsed_data.json.get("skins", [])))
+            #print("\n===== VRM0 DEBUG =====")
+#
+            #print("Meshes:", len(self.parsed_data.json.get("meshes", [])))
+            #print("Nodes:", len(self.parsed_data.json.get("nodes", [])))
+            #print("Skins:", len(self.parsed_data.json.get("skins", [])))
 
             skin0 = self.parsed_data.json["skins"][0]
             skin1 = self.parsed_data.json["skins"][1]
@@ -170,23 +170,23 @@ class Engine:
 
             used = np.where(counts > 0)[0]
 
-            print("Highest 50 GPU joints used:")
-            print(used[-50:])
+            #print("Highest 50 GPU joints used:")
+            #print(used[-50:])
             
 
         else:
             print("⚠️ Detected VRM1 format. Applying VRM1-specific processing...")
             print("🦴 Building Skeleton...")    
             self.skeleton = Skeleton(self.gn, self.parsed_data.json, self.parsed_data.bin_blob)
-            print("Joint names:", self.skeleton.joint_names[:5])
-            print("Joint count:", len(self.skeleton.joint_nodes))
+            #print("Joint names:", self.skeleton.joint_names[:5])
+            #print("Joint count:", len(self.skeleton.joint_nodes))
 
         self.gn.set_joint_names(self.skeleton.joint_names)
         self.gn.set_joint_count(len(self.skeleton.joint_nodes))
 
         
         self.animator = Animator(self.gn, self.skeleton)
-        self.Mmanager = MorphBehaviorManager()
+        self.Mmanager = MorphBehaviorManager(self.skeleton, self.gn, self.parsed_data.vrm_version)
         self.Smanager = SkeletonBehaviorManager(self.skeleton)
         
 
@@ -199,8 +199,8 @@ class Engine:
 
         for node_idx, node in enumerate(self.parsed_data.json["nodes"]):
             if "mesh" in node:
-                print( "NODE", node_idx, "MESH", node.get("mesh"), "SKIN", node.get("skin")
-                )
+                #print( "NODE", node_idx, "MESH", node.get("mesh"), "SKIN", node.get("skin"))
+                pass
             if "mesh" in node and "skin" in node:
             
                 mesh_index = node["mesh"]
@@ -208,9 +208,7 @@ class Engine:
 
                 mesh_to_skin[mesh_index] = skin_index
 
-                print(
-                    f"[VRM0] Mesh {mesh_index} uses Skin {skin_index}"
-                )
+                #print(    f"[VRM0] Mesh {mesh_index} uses Skin {skin_index}")
 
         for mesh_idx, mesh in enumerate(self.parsed_data.json["meshes"]):
             mesh_name = mesh.get("name", f"Mesh_{mesh_idx}")
@@ -279,7 +277,83 @@ class Engine:
 
         print(f"📦 Sorting Complete: {len(opaque_parts)} opaque, {len(transparent_parts)} transparent.")
 
-        # Position camera to view Kisayo
+        # =========================================================================
+        # 🔗 VRM 0.0 STARTUP BLENDSHAPE BINDING
+        # =========================================================================
+        if self.parsed_data.vrm_version == 0:
+            vrm_ext = self.parsed_data.json.get("extensions", {})
+            if "VRM" in vrm_ext:
+                print("📦 [Loader] Compiling VRM0 Compound Expression Groups to C++ VBO Slots...")
+                vrm0_groups = vrm_ext.get("VRM", {}).get("blendShapeMaster", {}).get("blendShapeGroups", [])
+
+                # Target pipeline destination slots
+                slot_mapping = {
+                    "blink": 0, # Slot 0 -> Blinker
+                    "fun":   1  # Slot 1 -> Breather
+                }
+
+                from core.vrm0_accessor import read_accessor
+
+                for group in vrm0_groups:
+                    preset_name = group.get("presetName", "").lower()
+                    if preset_name in slot_mapping:
+                        slot_idx = slot_mapping[preset_name]
+                        binds = group.get("binds", [])
+                        if not binds:
+                            continue
+                        
+                        # Track if we have initialized our target math space
+                        accumulated_deltas = None
+                        target_mesh_idx = None
+
+                        print(f"🧬 Compiling Compound Preset '{preset_name}' into C++ Slot {slot_idx}...")
+
+                        for bind in binds:
+                            mesh_idx = int(bind.get("mesh", 1))
+                            morph_target_idx = int(bind.get("index", 0))
+
+                            # Scale factor (glTF weights use a 0-100 range scale value)
+                            bind_weight = float(bind.get("weight", 100.0)) / 100.0
+
+                            target_mesh_idx = mesh_idx # Maintain reference
+
+                            meshes_list = self.parsed_data.json.get("meshes", [])
+                            if mesh_idx < len(meshes_list):
+                                mesh_node = meshes_list[mesh_idx]
+                                primitives = mesh_node.get("primitives", [])
+                                if primitives:
+                                    primitive = primitives[0]
+                                    targets = primitive.get("targets", [])
+
+                                    if morph_target_idx < len(targets):
+                                        position_accessor_idx = targets[morph_target_idx].get("POSITION")
+
+                                        if position_accessor_idx is not None:
+                                            # Pull individual vertex track offset array stream
+                                            raw_deltas = read_accessor(self.parsed_data.json, self.parsed_data.bin_blob, position_accessor_idx)
+                                            np_deltas = np.array(raw_deltas, dtype=np.float32)
+
+                                            # Accumulate the weighted blend value
+                                            if accumulated_deltas is None:
+                                                accumulated_deltas = np_deltas * bind_weight
+                                            else:
+                                                # Match structural shape sizes to avoid indexing overflow steps
+                                                if accumulated_deltas.shape == np_deltas.shape:
+                                                    accumulated_deltas += (np_deltas * bind_weight)
+
+                        # If we have successfully accumulated a non-empty morph target matrix, blit it down!
+                        if accumulated_deltas is not None and target_mesh_idx is not None:
+                            # Ensure data layout is continuous memory float32 arrays
+                            cooked_buffer = np.ascontiguousarray(accumulated_deltas, dtype=np.float32)
+
+                            self.gn.update_morph_data(
+                                target_mesh_idx,
+                                slot_idx,
+                                cooked_buffer
+                            )
+                            print(f"✅ Blit Fully Compiled Compound Shape for '{preset_name}' to C++ Mesh {target_mesh_idx} Slot {slot_idx}")
+
+            # Position camera to view Kisayo
         self.gn.set_camera_position(0.0, 1.5, 3.0)
         self.gn.set_camera_target(0.0, 1.0, 0.0)
 
@@ -287,22 +361,76 @@ class Engine:
         print("🎮 Use WASDEQ + mouse to navigate. ESC to toggle mouse.")
 
        # 1. During Setup (ONLY ONCE)
-        MORPH_SLOTS = ["Fcl_EYE_Close", "Fcl_ALL_Surprised", "Fcl_MTH_E", "Fcl_MTH_I"]
+        #MORPH_SLOTS = ["Fcl_EYE_Close", "Fcl_ALL_Surprised", "Fcl_MTH_E", "Fcl_MTH_I"]
         #face_mesh_index = -1
-        self.face_mesh_indices = []
-        self.face_morph_library = {} 
+        
 
 
         for i, part in enumerate(sorted_parts):
-            if "Face" in part["name"]:
-                # Save every morph the VRM has into our library
-                self.face_mesh_indices.append(i)
-                self.face_morph_library = part["morph_targets"]
+            #if "Face" in part["name"]:
+            #    # Save every morph the VRM has into our library
+            #    self.face_mesh_indices.append(i)
+            #    self.face_morph_library = part["morph_targets"]
+            upload_list = []
+            
+            if isinstance(part["morph_targets"], list):
+                upload_list = part["morph_targets"]
+            elif isinstance(part["morph_targets"], dict):
+                upload_list = list(part["morph_targets"].values())
 
             all_morphs = part["morph_targets"]
-            upload_list = []
 
-            for i, slot_name in enumerate(MORPH_SLOTS):
+            self.gn.upload_mesh(
+                part["vertices"], 
+                part["normals"], 
+                part["uvs"],
+                part["joints"], 
+                part["weights"], 
+                part["indices"],
+                upload_list,
+                part["tex_id"],
+                self.scene.get_all().index(self.model_entity),
+                part["vertex_count"]
+            )
+            
+            
+
+        self.face_mesh_indices = []
+        self.face_morph_library = {} 
+    
+        for i, part in enumerate(sorted_parts):
+            if "Face" in part["name"]:
+                self.face_mesh_indices.append(i)
+                self.face_morph_library = part["morph_targets"]
+                print(f"✅ Detected Face Mesh: '{part['name']}' at Render Index {i} with {len(part['morph_targets'])} morph targets.")
+        
+        # Fallback mechanism: If no explicit mesh is tagged "Face", 
+        # default target allocation directly to Mesh Index 1
+        if not self.face_mesh_indices and len(sorted_parts) > 1:
+            print("⚠️ No explicit 'Face' string found in mesh names. Falling back to default Mesh Index 1 for morph tracking.")
+            self.face_mesh_indices.append(1)
+            
+            # Check if the packed parsing layer completely missed the tracks
+            if not sorted_parts[1]["morph_targets"]:
+                print("💥 Detector alert: 'morph_targets' dictionary is completely empty! Generating synthetic runtime tracking keys...")
+                
+                # Synthetic mapping: maps behavior keys to dummy arrays 
+                # This prevents runtime key errors when Blinker/Breather try to read from the dictionary!
+                # We initialize them to empty tracks since the actual heavy vertex math 
+                # is already safely blitted into C++ slots 0 and 1 via `update_morph_data`!
+                dummy_vertex_offsets = np.zeros_like(sorted_parts[1]["vertices"])
+                self.face_morph_library = {
+                    "Fcl_EYE_Close": dummy_vertex_offsets,
+                    "Fcl_ALL_Surprised": dummy_vertex_offsets,
+                    "Fcl_MTH_E": dummy_vertex_offsets,
+                    "Fcl_MTH_I": dummy_vertex_offsets
+                }
+            else:
+                self.face_morph_library = sorted_parts[1]["morph_targets"]
+
+        #print("🎯 Final Target Parameters:", self.face_mesh_indices, list(self.face_morph_library.items()))
+
+        """for i, slot_name in enumerate(MORPH_SLOTS):
                 if slot_name in all_morphs:
                     data = all_morphs[slot_name]
                     upload_list.append(data)
@@ -320,7 +448,7 @@ class Engine:
                 part["tex_id"],
                 self.scene.get_all().index(self.model_entity),
                 part["vertex_count"]
-            )
+            )"""
 
     def init_entities(self):
         
@@ -336,7 +464,13 @@ class Engine:
 
         self.model_entity = Entity("Kisayo")
         self.model_entity.add_component("transform", Transform())
-        self.model_entity.get("transform").position = np.array([0.0, 0.0, 0.0]) # type: ignore
+        if hasattr(self, 'parsed_data') and self.parsed_data.vrm_version == 0:
+            print("🔄 VRM0 asset orientation correction applied: Rotating model 180° around Y-Axis.")
+            # If your engine uses Euler angles (Pitch, Yaw, Roll) in degrees or radians:
+            # Assuming radians here. Adjust to 180.0 if your engine expects degrees!
+            self.model_entity.get("transform").rotation = np.array([0.0, 180.0, 0.0]) # type: ignore
+        else:
+            self.model_entity.get("transform").rotation = np.array([0.0, 0.0, 0.0]) # type: ignore
 
         self.scene.add(self.model_entity)
 
@@ -419,7 +553,7 @@ if __name__ == "__main__":
     import core.greko_native as gn
     cfg = json.load(open('./config.json', 'r'))
 
-    engine = Engine(gn, "./assets/furina.vrm")
+    engine = Engine(gn, "./sample/loli.vrm")
     engine.eye_constraints = cfg.get("eye_constraints", engine.eye_constraints)
     engine.init_entities()
     engine.gameloop()

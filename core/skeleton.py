@@ -6,6 +6,7 @@ class Skeleton:
     def __init__(self, gn, json_data, bin_blob, vrm_data=None):
         self.gn = gn
         self.nodes = json_data.get("nodes", [])
+        self.json = json_data
         #skin = json_data.get("skins", [0])[0] if json_data.get("skins") else {}
         skins = json_data.get("skins", [])
         skin = skins[0] if skins else {}
@@ -97,3 +98,59 @@ class Skeleton:
         # (Since we have no set_bone_local_rotation for all bones yet, 
         # C++ defaults to identity which is fine for a start)
         print(f"🦴 C++ Skeleton Sync Complete: {len(self.joint_nodes)} bones.")
+
+    def get_vrm_bone_gpu_index(self, vrm_bone_name: str) -> int:
+        """
+        Robust bone index lookup that smoothly handles VRM0, VRM1, 
+        and raw VRoid structural naming conventions.
+        """
+        # Clean the search term
+        bone_query = vrm_bone_name.strip()
+        bone_query_lower = bone_query.lower()
+
+        # =========================================================================
+        # STRATEGY 1: CACHED METADATA DICTIONARY LOOKUP
+        # =========================================================================
+        # Check standard lookup variants in your pre-parsed dictionary
+        for variant in [bone_query, bone_query_lower, bone_query.capitalize()]:
+            node_idx = self.humanoid_bones.get(variant)
+            if node_idx is not None:
+                gpu_idx = self.node_to_joint_idx.get(int(node_idx), -1)
+                if gpu_idx != -1:
+                    return gpu_idx
+
+        # =========================================================================
+        # STRATEGY 2: INTELLIGENT FUZZY KEYWORD FALLBACK (For VRoid Naming Layouts)
+        # =========================================================================
+        # If metadata maps failed or are absent, inspect the actual string labels
+        for idx, joint_name in enumerate(self.joint_names):
+            name_lower = joint_name.lower()
+            #print(name_lower, bone_query_lower in name_lower)
+            # Special Rule: Head Matching
+            if bone_query_lower == "head":
+                if "head" in name_lower and "neck" not in name_lower:
+                    return idx
+                    
+            # Special Rule: Left Eye Matching
+            elif bone_query_lower == "lefteye":
+                if ("eye" in name_lower or "faceeye" in name_lower) and ("_l_" in name_lower or "left" in name_lower):
+                    return idx
+                    
+            # Special Rule: Right Eye Matching
+            elif bone_query_lower == "righteye":
+                if ("eye" in name_lower or "faceeye" in name_lower) and ("_r_" in name_lower or "right" in name_lower):
+                    return idx
+
+            # General catch-all for other structural joints (hips, spine, chest, etc.)
+            elif bone_query_lower in name_lower:
+                return idx
+
+        # =========================================================================
+        # STRATEGY 3: EXACT STRING FALLBACK
+        # =========================================================================
+        for idx, joint_name in enumerate(self.joint_names):
+            if joint_name.lower() == bone_query_lower:
+                return idx
+
+        print(f"❌ [Skeleton] Critical Error: Unified bone lookup failed for '{vrm_bone_name}'")
+        return -1

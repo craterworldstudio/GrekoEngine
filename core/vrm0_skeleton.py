@@ -59,6 +59,8 @@ class VRM0Skeleton:
             f"{self.joint_count} unified joints."
         )
 
+    
+
     def _build_unified_joint_layout(self):
         for skin_index, skin in enumerate(self.skins):
             remap = {}
@@ -177,3 +179,4 @@ class VRM0Skeleton:
             print(f"Error parsing bone index for {vrm_bone_name}: {exc}")
 
         return -1
+

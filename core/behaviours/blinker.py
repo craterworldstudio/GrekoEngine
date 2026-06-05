@@ -14,6 +14,20 @@ class Blinker(BehaviorBase):
         self.interval = 4.0
         self.blink_duration = 0.5 #inversely proportional to blink speed
 
+    def setup(self, skeleton, gn, vrm_version=2):
+        self.gn = gn
+        print(f"[Blinker] Detected VRM version: {vrm_version}")
+        # Define naming keys based on version specification
+        if vrm_version == 1:
+            self.target_name = "Fcl_EYE_Close"
+            self.blink_right = "Fcl_EYE_Close_R"
+            self.blink_left  = "Fcl_EYE_Close_L"
+        if vrm_version == 0:
+            self.target_name = "blink"
+            self.blink_right = "blink_r"
+            self.blink_left  = "blink_l"
+
+
     def update(self, gn):
         """Calculates a natural-ish blink timing and returns weights"""
         t = time.time()
@@ -28,7 +42,7 @@ class Blinker(BehaviorBase):
         
         # Return a dictionary of weights
         # This allows one behavior to control multiple facial expressions at once
-        return { "Fcl_EYE_Close": weight }
+        return { self.target_name: weight }
         #return {
         #    self.target_name: weight,
         #    self.blink_right: weight,

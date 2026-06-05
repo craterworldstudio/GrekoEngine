@@ -328,7 +328,7 @@ int init_renderer(int width, int height) {
     glDepthFunc(GL_LESS);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //glEnable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE);
     
     // FLAG: Don't forget to call this!
     setup_debug_shader();
@@ -505,7 +505,7 @@ void draw_scene() {
 
     if (editMode) {
         ImGui::SetNextWindowPos(ImVec2(0, 180));
-        ImGui::SetNextWindowSize(ImVec2(300, 600));
+        ImGui::SetNextWindowSize(ImVec2(400, 600));
         ImGui::Begin("Bone Inspector", nullptr,
         ImGuiWindowFlags_NoMove 
         | ImGuiWindowFlags_NoResize
@@ -523,7 +523,7 @@ void draw_scene() {
                 }
             }
             ImGui::EndCombo();
-        }
+        }   
 
         if (ImGui::BeginCombo("Entities", 
             entity_names.empty() ? "None" : entity_names[selected_entity_index].c_str()))
@@ -645,6 +645,169 @@ void draw_scene() {
         }
 
         ImGui::Spacing();
+
+        // =========================================================================
+        // 🎭 PANEL 1: LIVE MORPH TARGET SELECTOR
+        // =========================================================================
+        ImGui::Separator();
+        /* if (ImGui::CollapsingHeader("Morph Target Investigator")) {
+            ImGui::TextWrapped("Slide raw indices to discover which file target drives face layout vertices.");
+
+            static int diag_mesh_idx = 1;
+            static int diag_slot_idx = 0;
+            static int diag_target_idx = 0;
+            static float diag_weight = 0.0f;
+            static bool morph_triggered = false;
+
+            ImGui::SliderInt("Target Mesh", &diag_mesh_idx, 0, (int)scene_meshes.size() - 1);
+            ImGui::SliderInt("Pipeline Slot", &diag_slot_idx, 0, 3);
+            ImGui::SliderInt("Raw Morph Index", &diag_target_idx, 0, 55); // Most VRMs have 50-60 shapes
+            
+            
+            bool weight_changed = ImGui::SliderFloat("Test Weight", &diag_weight, 0.0f, 1.0f);
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "Current weight: %.2f", diag_weight);
+
+            Trigger when the user drags the weight slider or explicit clicks the blit runner
+            if (weight_changed || ImGui::Button("Blit Active Shape")) {
+                morph_triggered = true;
+                
+                Adjust your global array weights so the vertex shader processes the chosen slot
+                float w0 = (diag_slot_idx == 0) ? diag_weight : g_morph_weights[0];
+                float w1 = (diag_slot_idx == 1) ? diag_weight : g_morph_weights[1];
+                float w2 = (diag_slot_idx == 2) ? diag_weight : g_morph_weights[2];
+                float w3 = (diag_slot_idx == 3) ? diag_weight : g_morph_weights[3];
+                set_morph_weights(w0, w1, w2, w3);
+
+                Note: To fetch the raw position accessor index for non-precompiled shapes 
+                live from the glTF JSON chunk, you can pass a temporary sync signal back 
+                to your core/vrm0_accessor layer or simply evaluate pre-cached values here.
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Slot Weight Updated!");
+            }
+            
+            if (morph_triggered) {
+                ImGui::Text("Active Target Status: Mesh %d bound to Uniform Slot %d", diag_mesh_idx, diag_slot_idx);
+            }
+        } */
+
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Asset Pipeline Remapping Panel");
+        ImGui::Spacing();
+
+        if (ImGui::CollapsingHeader("Facial Morph / Blendshape Slots", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::TextWrapped("Assign which raw file morph target index maps to each runtime slot:");
+
+            // Persistent indices for your core runtime expressions
+            static int slot_idx_A     = 2;  // Default guesses
+            static int slot_idx_E     = 3;
+            static int slot_idx_I     = 4;
+            static int slot_idx_O     = 5;
+            static int slot_idx_U     = 6;
+            static int slot_idx_Blink = 1;
+
+            auto RenderMorphDropdown = [](const char* label, int& current_idx) {
+                std::string combo_label = std::string(label) + " Target Index: " + std::to_string(current_idx) + "##" + label;
+                if (ImGui::BeginCombo(label, combo_label.c_str())) {
+                    for (int i = 0; i < 60; i++) { // Limit to 60 common VRM blendshapes
+                        std::string item_name = "Morph Target #" + std::to_string(i);
+                        bool is_selected = (current_idx == i);
+                        if (ImGui::Selectable(item_name.c_str(), is_selected)) {
+                            current_idx = i;
+                            // Trigger hot-reload logic or pass this back to your Python behaviors here
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            };
+
+            RenderMorphDropdown("A (Mouth)",     slot_idx_A);
+            RenderMorphDropdown("E (Mouth)",     slot_idx_E);
+            RenderMorphDropdown("I (Mouth)",     slot_idx_I);
+            RenderMorphDropdown("O (Mouth)",     slot_idx_O);
+            RenderMorphDropdown("U (Mouth)",     slot_idx_U);
+            RenderMorphDropdown("Blink (Eyes)", slot_idx_Blink);
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Skeleton Joint Rig Target Slots", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::TextWrapped("Map core system tracking behaviors to your layout's specific bone nodes:");
+
+            // Persistent tracking IDs for head/neck nodes
+            static int slot_bone_head = 0;
+            static int slot_bone_neck = 0;
+            
+            // Safe initialization step using your structural joint name arrays
+            if (slot_bone_head == 0 && !joint_names.empty()) {
+                // Try to auto-guess head bone index to save you clicking time
+                for (size_t i = 0; i < joint_names.size(); i++) {
+                    if (joint_names[i].find("Head") != std::string::npos || joint_names[i].find("head") != std::string::npos) {
+                        slot_bone_head = i;
+                    }
+                    if (joint_names[i].find("Neck") != std::string::npos || joint_names[i].find("neck") != std::string::npos) {
+                        slot_bone_neck = i;
+                    }
+                }
+            }
+
+            auto RenderBoneDropdown = [](const char* label, int& current_bone_idx) {
+                std::string preview = (current_bone_idx >= 0 && current_bone_idx < (int)joint_names.size()) ? 
+                                      joint_names[current_bone_idx] : "Unassigned";
+                
+                if (ImGui::BeginCombo(label, preview.c_str())) {
+                    for (int i = 0; i < (int)joint_names.size(); i++) {
+                        std::string item_name = std::to_string(i) + " - " + joint_names[i];
+                        bool is_selected = (current_bone_idx == i);
+                        if (ImGui::Selectable(item_name.c_str(), is_selected)) {
+                            current_bone_idx = i;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            };
+
+            RenderBoneDropdown("Head Control Node", slot_bone_head);
+            RenderBoneDropdown("Neck Control Node", slot_bone_neck);
+            
+            ImGui::Spacing();
+            if (ImGui::Button("Apply & Intercept Rig Constraints")) {
+                std::cout << "🔄 Calibration Updated: Head Node linked to index " << slot_bone_head 
+                          << " | Neck Node linked to index " << slot_bone_neck << std::endl;
+                
+                // Set the engine authority mode over entities so tracking doesn't compete with scripts
+                if (selected_entity_index >= 0 && selected_entity_index < (int)entity_authority.size()) {
+                    entity_authority[selected_entity_index] = AUTH_NATIVE;
+                }
+            }
+        }
+
+        // =========================================================================
+        // 🦴 PANEL 2: CORE ENGINE MATRIX AUTHORITY OVERRIDE
+        // =========================================================================
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("Bone Update Authority Link")) {
+            ImGui::TextWrapped("Check current entity processing pipelines.");
+
+            if (selected_entity_index >= 0 && selected_entity_index < (int)entity_authority.size()) {
+                int current_auth = entity_authority[selected_entity_index];
+                
+                if (current_auth == AUTH_PYTHON) {
+                    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Status: Driven by Python (Behaviors Active)");
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "Status: Driven by Native C++ (Editor Manual Focus)");
+                }
+
+                if (ImGui::Button("Force Force Native Overrides")) {
+                    entity_authority[selected_entity_index] = AUTH_NATIVE;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Handshake back to Python")) {
+                    entity_authority[selected_entity_index] = AUTH_PYTHON;
+                }
+            } else {
+                ImGui::Text("⚠️ No active entity tracked within memory registries.");
+            }
+        }
+
 
         if (ImGui::Button("Save to Config")) {
             save_eye_constraints_to_config();
@@ -785,6 +948,7 @@ void draw_scene() {
         if (mesh.entity_index >= 0 && mesh.entity_index < entity_world_matrices.size())
             model = entity_world_matrices[mesh.entity_index];
         
+        model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
         // Texture bind
@@ -796,7 +960,8 @@ void draw_scene() {
 
         // Base color factor
         glUniform4f(glGetUniformLocation(shaderProgram, "uBaseColorFactor"), 1.0f, 1.0f, 1.0f, 1.0f);
-
+        
+        glDisable(GL_CULL_FACE); // Disable backface culling for better visibility of all faces
         glBindVertexArray(mesh.vao);
         glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, 0);
     }
@@ -832,6 +997,20 @@ void update_morph_slot(int mesh_index, int slot_index, const float* new_data, si
     if (mesh_index < 0 || mesh_index >= scene_meshes.size() || slot_index < 0 || slot_index >= 4) {
         return;
     }
+
+    if (mesh_index < 0 || mesh_index >= scene_meshes.size() || slot_index < 0 || slot_index >= 4) {
+        std::cout << "❌ [C++] Morph Slot Out of Bounds: Mesh " << mesh_index << ", Slot " << slot_index << std::endl;
+        return;
+    }
+
+    // Verify data sizes and sample the first vertex offset delta
+    std::cout << "🧬 [C++] Blitting Mesh: " << mesh_index 
+              << " | Slot: " << slot_index 
+              << " | Elements: " << data_size;
+    if (data_size > 3) {
+        std::cout << " | Sample Delta: (" << new_data[0] << ", " << new_data[1] << ", " << new_data[2] << ")";
+    }
+    std::cout << std::endl;
 
     //std::cout << " Mesh: " << mesh_index 
     //      << " Slot: " << slot_index 

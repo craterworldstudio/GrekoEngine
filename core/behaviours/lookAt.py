@@ -14,9 +14,9 @@ class LookAt(SkeletonBehaviorBase):
     def setup(self, skeleton, gn):
         try:
             #self.head_index = animator.get_bone_index("J_Bip_C_Head")
-            self.head_index = skeleton.joint_names.index("J_Bip_C_Head")
-            self.left_eye_index = skeleton.joint_names.index("J_Adj_L_FaceEye")
-            self.right_eye_index = skeleton.joint_names.index("J_Adj_R_FaceEye")
+            self.head_index = skeleton.get_vrm_bone_gpu_index     ("Head")#("J_Bip_C_Head")
+            self.left_eye_index = skeleton.get_vrm_bone_gpu_index ("leftEye")#("J_Adj_L_FaceEye")
+            self.right_eye_index = skeleton.get_vrm_bone_gpu_index("rightEye")#("J_Adj_R_FaceEye")
             #for i, name in enumerate(skeleton.joint_names):
             #   name = skeleton.nodes[node_index].get("name", "")
             #   if name == "J_Bip_C_Head":
