@@ -16,4 +16,10 @@ dist
 
 test.adts
 test.gpseq
+vrm_debug.json
+vrm0_data.json
+imgui.ini
+config.json
+data.txt
+blendshapes_reference.txt
 core/greko_native.cpython-313-x86_64-linux-gnu.so
