@@ -7,6 +7,7 @@ import sys
 import os, shutil, importlib, sysconfig, json
 import numpy as np
 
+
 #from core import skeleton
 import importlib.util
 import sys
@@ -16,14 +17,14 @@ from core.utils.vrmdata import export_vrm_debug
 
 def resource_path(relative):
     if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, relative)
+        return os.path.join(sys._MEIPASS, relative)  # type: ignore
     return os.path.join(os.path.abspath("."), relative)
 
 def load_native(path):
 
     # 🔥 CRITICAL: Use MEIPASS if available
     if hasattr(sys, "_MEIPASS"):
-        base_dir = sys._MEIPASS
+        base_dir = sys._MEIPASS #type: ignore
         print("!")
     else:
         base_dir = os.path.abspath(".")
@@ -83,6 +84,12 @@ class Engine:
     def __init__(self, gn, assets_path):
         self.gn = gn
         self.assets_path = assets_path
+
+        if not os.path.exists(self.assets_path):
+            print(f"❌ VRM not found: {self.assets_path}")
+            self.gn.terminate()
+            return
+        
         self.eye_constraints = {
             "inner_yaw": 8.0,
             "outer_yaw": 6.0,
@@ -90,13 +97,16 @@ class Engine:
             "down_pitch": 3.0
         }
 
+        file_name = os.path.basename(self.assets_path)
+        model_name = os.path.splitext(file_name)[0]
+        self.model_name = model_name
+
     def setup_load(self): 
         vrm_path = self.assets_path #"assets/kiyo.vrm"
         
-        if not os.path.exists(vrm_path):
-            print(f"❌ VRM not found: {vrm_path}")
-            self.gn.terminate()
-            return
+        
+        
+        
 
         print(f"📂 Loading VRM: {vrm_path}")
 
@@ -106,7 +116,8 @@ class Engine:
             self.eye_constraints["up_pitch"],
             self.eye_constraints["down_pitch"]
         )
-
+        
+        #print(self.model_name)
         self.parsed_data = parse_glb(vrm_path)
         #self.vrm_data = adapt_vrm(self.parsed_data)
         #print(self.parsed_data)
@@ -124,8 +135,8 @@ class Engine:
             #print("Nodes:", len(self.parsed_data.json.get("nodes", [])))
             #print("Skins:", len(self.parsed_data.json.get("skins", [])))
 
-            skin0 = self.parsed_data.json["skins"][0]
-            skin1 = self.parsed_data.json["skins"][1]
+            #skin0 = self.parsed_data.json["skins"][0]
+            #skin1 = self.parsed_data.json["skins"][1]
 
             #print("Skin joints:", len(skin0["joints"]))
             #print("First 20 skin 0 joints:", skin0["joints"][:20])
@@ -217,9 +228,6 @@ class Engine:
                 if self.parsed_data.vrm_version == 0:
 
                     skin_index = mesh_to_skin.get(mesh_idx, 0)
-                    if skin_index == 2:
-                        continue
-                    
                     packed = package_vrm0_mesh(
                         self.parsed_data.json,
                         self.parsed_data.bin_blob,
@@ -240,8 +248,18 @@ class Engine:
                     )
 
                 # FLAG: Check for transparency tags
-                # We look at the mesh name or the material index to identify face parts
-                is_transparent = any(x in mesh_name for x in ["Face", "Eye", "Hair"])
+                # We use explicit material alpha mode when available, otherwise only
+                # treat face/eye meshes as transparent for proper draw ordering.
+                is_transparent = False
+                material_index = primitive.get("material")
+                if material_index is not None:
+                    material = self.parsed_data.json.get("materials", [])[material_index]
+                    alpha_mode = material.get("alphaMode", "OPAQUE")
+                    is_transparent = alpha_mode != "OPAQUE"
+                if not is_transparent:
+                    mesh_name_lower = mesh_name.lower()
+                    if "face" in mesh_name_lower or "eye" in mesh_name_lower:
+                        is_transparent = True
 
                 tex_id = 0
                 if packed.get('texture') is not None:
@@ -250,6 +268,7 @@ class Engine:
 
                 render_parts.append({
                     "name": mesh_name,
+                    "src_mesh_idx": mesh_idx,
                     "vertices": packed['vertices'],
                     "normals": packed['normals'],
                     "uvs": packed['uvs'],
@@ -277,13 +296,18 @@ class Engine:
 
         print(f"📦 Sorting Complete: {len(opaque_parts)} opaque, {len(transparent_parts)} transparent.")
 
+        # We'll collect any precompiled VRM0 morph buffers here and apply them
+        # after we have uploaded meshes to the GPU so we can map glTF mesh
+        # indices to actual renderer scene mesh indices.
+        precompiled_morphs = []
+
         # =========================================================================
-        # 🔗 VRM 0.0 STARTUP BLENDSHAPE BINDING
+        # 🔗 VRM 0.0 STARTUP BLENDSHAPE PRE-COMPILE
         # =========================================================================
         if self.parsed_data.vrm_version == 0:
             vrm_ext = self.parsed_data.json.get("extensions", {})
             if "VRM" in vrm_ext:
-                print("📦 [Loader] Compiling VRM0 Compound Expression Groups to C++ VBO Slots...")
+                print("📦 [Loader] Pre-compiling VRM0 Compound Expression Groups...")
                 vrm0_groups = vrm_ext.get("VRM", {}).get("blendShapeMaster", {}).get("blendShapeGroups", [])
 
                 # Target pipeline destination slots
@@ -301,21 +325,18 @@ class Engine:
                         binds = group.get("binds", [])
                         if not binds:
                             continue
-                        
-                        # Track if we have initialized our target math space
+
                         accumulated_deltas = None
                         target_mesh_idx = None
 
-                        print(f"🧬 Compiling Compound Preset '{preset_name}' into C++ Slot {slot_idx}...")
+                        print(f"🧬 Precompiling Compound Preset '{preset_name}' into GPU slot {slot_idx}...")
 
                         for bind in binds:
-                            mesh_idx = int(bind.get("mesh", 1))
+                            mesh_idx = int(bind.get("mesh", 0))
                             morph_target_idx = int(bind.get("index", 0))
-
-                            # Scale factor (glTF weights use a 0-100 range scale value)
                             bind_weight = float(bind.get("weight", 100.0)) / 100.0
 
-                            target_mesh_idx = mesh_idx # Maintain reference
+                            target_mesh_idx = mesh_idx
 
                             meshes_list = self.parsed_data.json.get("meshes", [])
                             if mesh_idx < len(meshes_list):
@@ -329,29 +350,19 @@ class Engine:
                                         position_accessor_idx = targets[morph_target_idx].get("POSITION")
 
                                         if position_accessor_idx is not None:
-                                            # Pull individual vertex track offset array stream
                                             raw_deltas = read_accessor(self.parsed_data.json, self.parsed_data.bin_blob, position_accessor_idx)
                                             np_deltas = np.array(raw_deltas, dtype=np.float32)
 
-                                            # Accumulate the weighted blend value
                                             if accumulated_deltas is None:
                                                 accumulated_deltas = np_deltas * bind_weight
                                             else:
-                                                # Match structural shape sizes to avoid indexing overflow steps
                                                 if accumulated_deltas.shape == np_deltas.shape:
                                                     accumulated_deltas += (np_deltas * bind_weight)
 
-                        # If we have successfully accumulated a non-empty morph target matrix, blit it down!
                         if accumulated_deltas is not None and target_mesh_idx is not None:
-                            # Ensure data layout is continuous memory float32 arrays
                             cooked_buffer = np.ascontiguousarray(accumulated_deltas, dtype=np.float32)
-
-                            self.gn.update_morph_data(
-                                target_mesh_idx,
-                                slot_idx,
-                                cooked_buffer
-                            )
-                            print(f"✅ Blit Fully Compiled Compound Shape for '{preset_name}' to C++ Mesh {target_mesh_idx} Slot {slot_idx}")
+                            precompiled_morphs.append((int(target_mesh_idx), int(slot_idx), cooked_buffer))
+                            print(f"✅ Precompiled '{preset_name}' for glTF mesh {target_mesh_idx} -> slot {slot_idx}")
 
             # Position camera to view Kisayo
         self.gn.set_camera_position(0.0, 1.5, 3.0)
@@ -396,37 +407,69 @@ class Engine:
             
 
         self.face_mesh_indices = []
-        self.face_morph_library = {} 
-    
+        self.face_morph_library = {}
+
+        # Build a mapping from original glTF mesh index -> scene mesh index
+        gltf_to_scene = {}
+        for scene_idx, part in enumerate(sorted_parts):
+            if "src_mesh_idx" in part:
+                gltf_to_scene[int(part["src_mesh_idx"]) ] = scene_idx
+
+        # Apply any precompiled VRM0 morph buffers to the correct scene meshes
+        if precompiled_morphs:
+            for (gltf_mesh_idx, slot_idx, buf) in precompiled_morphs:
+                scene_idx = gltf_to_scene.get(int(gltf_mesh_idx))
+                if scene_idx is None:
+                    print(f"⚠️ Precompiled morph target references unknown glTF mesh {gltf_mesh_idx}; skipping")
+                    continue
+                try:
+                    expected_vertices = sorted_parts[scene_idx]["vertex_count"]
+                    expected_elements = int(expected_vertices) * 3
+
+                    # buf may be a (N,3) array; ensure we pass a flat float32 array of correct length
+                    flat = buf.ravel()
+                    if flat.size != expected_elements:
+                        print(f"⚠️ Morph size mismatch for scene mesh {scene_idx}: expected {expected_elements} floats, got {flat.size}. Resizing to fit.")
+                        new_buf = np.zeros((expected_elements,), dtype=np.float32)
+                        copy_count = min(flat.size, expected_elements)
+                        new_buf[:copy_count] = flat[:copy_count]
+                        flat = new_buf
+
+                    self.gn.update_morph_data(scene_idx, slot_idx, flat)
+                    print(f"✅ Applied precompiled morph for glTF mesh {gltf_mesh_idx} -> scene mesh {scene_idx} slot {slot_idx}")
+                except Exception as e:
+                    print(f"❌ Failed to apply precompiled morph to scene mesh {scene_idx}: {e}")
+        self.face_morph_names = []
+
+
         for i, part in enumerate(sorted_parts):
-            if "Face" in part["name"]:
+            name_lower = part["name"].lower()
+            if "face" in name_lower or "eye" in name_lower:
                 self.face_mesh_indices.append(i)
                 self.face_morph_library = part["morph_targets"]
-                print(f"✅ Detected Face Mesh: '{part['name']}' at Render Index {i} with {len(part['morph_targets'])} morph targets.")
-        
-        # Fallback mechanism: If no explicit mesh is tagged "Face", 
-        # default target allocation directly to Mesh Index 1
-        if not self.face_mesh_indices and len(sorted_parts) > 1:
-            print("⚠️ No explicit 'Face' string found in mesh names. Falling back to default Mesh Index 1 for morph tracking.")
-            self.face_mesh_indices.append(1)
-            
-            # Check if the packed parsing layer completely missed the tracks
-            if not sorted_parts[1]["morph_targets"]:
-                print("💥 Detector alert: 'morph_targets' dictionary is completely empty! Generating synthetic runtime tracking keys...")
-                
-                # Synthetic mapping: maps behavior keys to dummy arrays 
-                # This prevents runtime key errors when Blinker/Breather try to read from the dictionary!
-                # We initialize them to empty tracks since the actual heavy vertex math 
-                # is already safely blitted into C++ slots 0 and 1 via `update_morph_data`!
-                dummy_vertex_offsets = np.zeros_like(sorted_parts[1]["vertices"])
-                self.face_morph_library = {
-                    "Fcl_EYE_Close": dummy_vertex_offsets,
-                    "Fcl_ALL_Surprised": dummy_vertex_offsets,
-                    "Fcl_MTH_E": dummy_vertex_offsets,
-                    "Fcl_MTH_I": dummy_vertex_offsets
-                }
-            else:
-                self.face_morph_library = sorted_parts[1]["morph_targets"]
+                print(f"✅ Detected Face/Eye Mesh: '{part['name']}' at Render Index {i} with {len(part['morph_targets'])} morph targets.")
+
+        # Fallback mechanism: If no explicit face/eye mesh was tagged,
+        # choose the first mesh that contains morph targets.
+        if not self.face_mesh_indices:
+            for i, part in enumerate(sorted_parts):
+                if part["morph_targets"]:
+                    self.face_mesh_indices.append(i)
+                    self.face_morph_library = part["morph_targets"]
+                    print(f"⚠️ No explicit face/eye mesh name found. Using first morph-enabled mesh '{part['name']}' at index {i}.")
+                    break
+
+        if self.face_mesh_indices and not self.face_morph_library:
+            print("💥 Detector alert: selected face mesh has no morph targets. Falling back to synthetic placeholders.")
+            dummy_vertex_offsets = np.zeros_like(sorted_parts[self.face_mesh_indices[0]]["vertices"])
+            self.face_morph_library = {
+                "Fcl_EYE_Close": dummy_vertex_offsets,
+                "Fcl_ALL_Surprised": dummy_vertex_offsets,
+                "Fcl_MTH_E": dummy_vertex_offsets,
+                "Fcl_MTH_I": dummy_vertex_offsets
+            }
+
+        self.face_morph_names = list(self.face_morph_library.keys())
 
         #print("🎯 Final Target Parameters:", self.face_mesh_indices, list(self.face_morph_library.items()))
 
@@ -461,8 +504,8 @@ class Engine:
         self.context.gn=self.gn
         self.scene = Scene(self.context)
         self.context.scene = self.scene
-
-        self.model_entity = Entity("Kisayo")
+                        
+        self.model_entity = Entity(self.model_name)
         self.model_entity.add_component("transform", Transform())
         if hasattr(self, 'parsed_data') and self.parsed_data.vrm_version == 0:
             print("🔄 VRM0 asset orientation correction applied: Rotating model 180° around Y-Axis.")
@@ -510,6 +553,32 @@ class Engine:
 
         morph.face_mesh_indices = self.face_mesh_indices # type: ignore
         morph.inject_morph_library(self.face_morph_library) # type: ignore
+
+        # Expose the available VRM morph names to the renderer GUI
+        if hasattr(self.gn, 'set_face_morph_targets_dual'):
+            self.process_and_sync_morphs(self.face_morph_names, self.gn)
+        elif hasattr(self.gn, 'set_face_morph_targets'):
+            # Backwards-compatible single-list caller
+            self.gn.set_face_morph_targets(self.face_morph_names)
+
+        if hasattr(self.gn, 'set_face_morph_slot_selections'):
+            self.gn.set_face_morph_slot_selections([
+                self.face_morph_names.index(morph.morph_slot_targets.get(0)) if morph.morph_slot_targets.get(0) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(1)) if morph.morph_slot_targets.get(1) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(2)) if morph.morph_slot_targets.get(2) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(3)) if morph.morph_slot_targets.get(3) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(4)) if morph.morph_slot_targets.get(4) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(5)) if morph.morph_slot_targets.get(5) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(6)) if morph.morph_slot_targets.get(6) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(7)) if morph.morph_slot_targets.get(7) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(8)) if morph.morph_slot_targets.get(8) in self.face_morph_names else -1, #type: ignore 
+                self.face_morph_names.index(morph.morph_slot_targets.get(9)) if morph.morph_slot_targets.get(9) in self.face_morph_names else -1  #type: ignore  
+            ])
+
+        # Register the morph selection callback so the native GUI can tell Python
+        # when the user chooses a different face blendshape for a behavior slot.
+        if hasattr(self.gn, 'register_morph_assignment_callback'):
+            self.gn.register_morph_assignment_callback(morph.handle_morph_assignment) # type: ignore
         
         
 
@@ -547,13 +616,78 @@ class Engine:
             self.gn.draw_scene() 
             self.gn.swap_buffers()
 
+        if hasattr(self.gn, 'clear_morph_assignment_callback'):
+            self.gn.clear_morph_assignment_callback()
         self.gn.terminate()
+
+
+    def process_and_sync_morphs(self, raw_morph_list, renderer_module=None):
+        """
+        Takes raw model strings (e.g., Japanese), parses out digit tracking prefixes,
+        dynamically translates them to English, and pushes them to the C++ dual wrapper binding.
+
+        """
+        import re
+        try:
+            from deep_translator import GoogleTranslator
+            have_translator = True
+        except Exception:
+            GoogleTranslator = None
+            have_translator = False
+
+        translated_display_names = []
+        translator = GoogleTranslator(source='auto', target='en') if have_translator else None   #type: ignore
+
+        if not have_translator:
+            print("⚠️ deep-translator not available. Install with: pip install deep-translator")
+
+        for raw_name in raw_morph_list:
+            prefix_match = re.match(r"^([0-9]+\s*\.\s*)", raw_name)
+            prefix = prefix_match.group(1) if prefix_match else ""
+            clean_name = raw_name[len(prefix):].strip()
+            
+            if clean_name and translator is not None:
+                try:
+                    english_text = translator.translate(clean_name)
+                    translated_display_names.append(f"{prefix}{english_text}")
+                except Exception:
+                    translated_display_names.append(raw_name)
+            else:
+                # No translator available or empty clean name: fall back to raw
+                translated_display_names.append(raw_name)
+    
+
+        target_renderer = renderer_module
+        if target_renderer is None:
+            try:
+                import core.greko_native as default_gn
+                target_renderer = default_gn
+            except Exception:
+                target_renderer = None
+
+
+        if target_renderer is None:
+            print("⚠️ process_and_sync_morphs: No renderer module available to sync morphs.")
+            return
+
+        # Prefer the new dual API if available
+        if hasattr(target_renderer, 'set_face_morph_targets_dual'):
+            target_renderer.set_face_morph_targets_dual(raw_morph_list, translated_display_names)
+        elif hasattr(target_renderer, 'set_face_morph_targets'):
+            # Backwards-compatible: send the raw list and use it as display names too
+            target_renderer.set_face_morph_targets(raw_morph_list)
+        else:
+            print("⚠️ Renderer binding lacks face morph target setter.")
+
+    
+
 
 if __name__ == "__main__":
     import core.greko_native as gn
     cfg = json.load(open('./config.json', 'r'))
 
-    engine = Engine(gn, "./sample/loli.vrm")
+    #engine = Engine(gn, "./sample/darkness0.vrm")
+    engine = Engine(gn, "./assets/furina3.vrm")
     engine.eye_constraints = cfg.get("eye_constraints", engine.eye_constraints)
     engine.init_entities()
     engine.gameloop()

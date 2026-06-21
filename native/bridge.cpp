@@ -1,8 +1,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <pybind11/functional.h>
 #include <vector>
 #include <string>
+#include <functional>
 #include "renderer.hpp"
 #include "animation.hpp"
 #include "lookAt.hpp"
@@ -14,6 +16,14 @@ namespace py = pybind11;
 
 // Forward declarations
 extern void set_current_texture(GLuint tex_id);
+void set_face_morph_targets(const std::vector<std::string>& target_names);
+void set_face_morph_targets_dual(const std::vector<std::string>& raw_names, const std::vector<std::string>& display_names);
+void invoke_morph_assignment_callback(int behavior_id, const std::string& target_name);
+// Blinker strength accessors implemented in renderer.cpp
+void set_blinker_strength(float s);
+float get_blinker_strength();
+
+static PyObject* g_morph_assignment_pyobj = nullptr;
 
 //bool is_key_down(int key);
 //bool is_key_pressed(int key);  // edge trigger
@@ -90,6 +100,29 @@ void update_morph_data(int mesh_index, int slot_index, py::array_t<float> new_da
     update_morph_slot(mesh_index, slot_index, arr.data(), arr.size());
 }
 
+void clear_morph_assignment_callback() {
+    py::gil_scoped_acquire acquire;
+    if (g_morph_assignment_pyobj) {
+        Py_XDECREF(g_morph_assignment_pyobj);
+        g_morph_assignment_pyobj = nullptr;
+    }
+}
+
+void invoke_morph_assignment_callback(int behavior_id, const std::string& target_name) {
+    if (!g_morph_assignment_pyobj) {
+        std::cout << "⚠️ [C++] Morph assignment callback is not registered." << std::endl;
+        return;
+    }
+
+    py::gil_scoped_acquire acquire;
+    try {
+        py::object cb = py::reinterpret_borrow<py::object>(g_morph_assignment_pyobj);
+        cb(behavior_id, target_name);
+    } catch (const std::exception& ex) {
+        std::cout << "❌ [C++] Morph assignment callback failed: " << ex.what() << std::endl;
+    }
+}
+
 PYBIND11_MODULE(greko_native, m) {
     m.doc() = "Greko Engine Native Renderer Bridge";
     
@@ -105,8 +138,23 @@ PYBIND11_MODULE(greko_native, m) {
     m.def("is_key_pressed", &is_key_pressed);
     m.def("set_joint_count", &set_joint_count, "Set the number of joints in the skeleton");
     m.def("set_joint_names", &set_joint_names, "Set the list of joint names from the skeleton");
+    m.def("set_face_morph_targets", &set_face_morph_targets, "Supply the renderer with available face morph names from the loaded model");
+    m.def("set_face_morph_targets_dual", &set_face_morph_targets_dual, "Supply the renderer with parallel raw keys and display names for face morphs");
+    m.def("set_face_morph_slot_selections", &set_face_morph_slot_selections, "Sync the selected morph target indices for all face morph assignment slots");
+    m.def("register_morph_assignment_callback", [](py::function callback) {
+        py::gil_scoped_acquire acquire;
+        // If we already had a stored callback, DECREF it safely here (we hold the GIL)
+        if (g_morph_assignment_pyobj) {
+            Py_XDECREF(g_morph_assignment_pyobj);
+            g_morph_assignment_pyobj = nullptr;
+        }
 
-    
+        // Keep a borrowed reference by INCREF'ing the raw PyObject* so it stays alive.
+        Py_XINCREF(callback.ptr());
+        g_morph_assignment_pyobj = callback.ptr();
+    }, "Register a Python callback for morph slot assignment changes from the native UI");
+    m.def("clear_morph_assignment_callback", &clear_morph_assignment_callback, 
+        "Clear the stored Python morph assignment callback and release its reference");
     
     // *** Texture upload ***
     m.def("upload_texture", [](py::bytes data, bool srgb) -> int {
@@ -132,6 +180,9 @@ PYBIND11_MODULE(greko_native, m) {
 
     m.def("set_morph_weights", &set_morph_weights, 
         "Set how much the face expression is applied (0.0 to 1.0)");
+
+    m.def("set_blinker_strength", &set_blinker_strength, "Set the global blinker strength from Python");
+    m.def("get_blinker_strength", &get_blinker_strength, "Get the global blinker strength") ;
 
     m.def("update_morph_data", &update_morph_data, "Hot-swap a morph target's vertex data");
     
@@ -254,17 +305,20 @@ PYBIND11_MODULE(greko_native, m) {
 
     m.def("set_entity_list", [](std::vector<std::string> names) {
         entity_names = names;
-        
+
         entity_world_matrices.clear();
+        entity_authority.clear();
+        entity_positions.clear();
+        entity_rotations.clear();
+        entity_scales.clear();
+
         for (size_t i = 0; i < names.size(); i++) {
             entity_world_matrices.push_back(glm::mat4(1.0f));
             entity_authority.push_back(AUTH_PYTHON);
-        };
-
-        entity_positions.resize(names.size(), glm::vec3(0.0f));
-        entity_rotations.resize(names.size(), glm::vec3(0.0f));
-        entity_scales.resize(names.size(), glm::vec3(1.0f));
-        //entity_world_matrices.resize(entity_names.size(), glm::mat4(1.0f));
+            entity_positions.push_back(glm::vec3(0.0f));
+            entity_rotations.push_back(glm::vec3(0.0f));
+            entity_scales.push_back(glm::vec3(1.0f));
+        }
     });
 
     m.def("get_selected_entity_index", []() {

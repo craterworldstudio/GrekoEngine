@@ -36,6 +36,14 @@ class MouthSequencer(BehaviorBase):
         self.timeline = []
         self.face_indices = []
 
+        self.phoneme_targets = {
+            "REST": None,
+            "A": None,
+            "E": None,
+            "I": None,
+            "O": None,
+            "U": None
+        }
 
         self.target_slot = 2  # Slot reserved for phoneme morphs
 
@@ -91,6 +99,17 @@ class MouthSequencer(BehaviorBase):
  
         return events
 
+    def set_phoneme_target(self, phoneme_key, morph_name):
+        if phoneme_key not in self.phoneme_targets:
+            return
+
+        if morph_name not in self.morph_library:
+            print(f"❌ MouthSequencer target '{morph_name}' not found in loaded morphs")
+            return
+
+        self.phoneme_targets[phoneme_key] = morph_name
+        print(f"🎤 MouthSequencer phoneme '{phoneme_key}' mapped to morph '{morph_name}'")
+
     def update(self, gn):
 
         if not self.morph_library or not self.face_indices:
@@ -105,10 +124,8 @@ class MouthSequencer(BehaviorBase):
 
         if self.current_index >= len(self.timeline):
             self.playing = False
-            #self.current_mapped_name = None
-            #return {"PHONEME_ACTIVE": 0.0}
-
-            close_name = PHONEME_MAP["REST"]
+            close_key = "REST"
+            close_name = self.phoneme_targets.get(close_key)
             if close_name in self.morph_library:
                 for idx in self.face_indices:
                     gn.update_morph_data(
@@ -120,17 +137,17 @@ class MouthSequencer(BehaviorBase):
 
             return {"PHONEME_ACTIVE": 0.0}
 
-
         event = self.timeline[self.current_index]
         # Apply morph swap if exists
-        mapped_name = PHONEME_MAP.get(event.phoneme)
+        phoneme_key = PHONEME_MAP.get(event.phoneme)
 
-        #PAUSE or HOLD - we just skip morph changes but keep the timing
-        if mapped_name == "HOLD": pass
+        # PAUSE or HOLD - we just skip morph changes but keep the timing
+        if phoneme_key == "HOLD":
+            pass
 
-        # REST or unknown phoneme
-        elif mapped_name:
-            if mapped_name != self.current_mapped_name:
+        elif phoneme_key:
+            mapped_name = self.phoneme_targets.get(phoneme_key)
+            if mapped_name and mapped_name != self.current_mapped_name:
                 if mapped_name in self.morph_library:
                     for idx in self.face_indices:
                         gn.update_morph_data(
@@ -138,10 +155,7 @@ class MouthSequencer(BehaviorBase):
                             self.target_slot,
                             self.morph_library[mapped_name]
                         )
-
                 self.current_mapped_name = mapped_name
-
-        else: pass
 
         self.current_time += dt
 

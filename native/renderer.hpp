@@ -4,6 +4,7 @@
 #include <glad/glad.h>
 #include "camera.hpp"
 #include <string>
+#include "stb_image.h"
 
 // Forward declarations / globals
 //extern unsigned int shaderProgram;
@@ -27,6 +28,16 @@ extern std::vector<glm::mat4> entity_world_matrices;
 extern std::vector<glm::vec3> entity_positions;
 extern std::vector<glm::vec3> entity_rotations; // Euler degrees for UI
 extern std::vector<glm::vec3> entity_scales;
+
+extern std::vector<std::string> face_morph_target_names;
+extern std::vector<std::string> face_morph_raw_names;
+extern std::vector<int> face_morph_selected_indices;
+extern bool g_disable_backface_culling;
+
+void set_face_morph_targets(const std::vector<std::string>& target_names);
+void set_face_morph_targets_dual(const std::vector<std::string>& raw_names, const std::vector<std::string>& display_names);
+void set_face_morph_slot_selections(const std::vector<int>& selected_indices);
+void invoke_morph_assignment_callback(int behavior_id, const std::string& target_name);
 
 struct GPUMesh {
     GLuint vao;

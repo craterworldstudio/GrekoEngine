@@ -38,13 +38,26 @@ class Blinker(BehaviorBase):
         if cycle_pos < self.blink_duration:
             # FLAG: Smooth Animation
             # Sine creates a smooth 'in and out' so the eyelids don't pop
-            weight = math.sin((cycle_pos / self.blink_duration) * math.pi) * self.strength
+            # Allow the native engine to override the strength value if provided
+            try:
+                engine_strength = None
+                if hasattr(self, 'gn') and self.gn is not None and hasattr(self.gn, 'get_blinker_strength'):
+                    try:
+                        engine_strength = self.gn.get_blinker_strength()
+                    except Exception:
+                        engine_strength = None
+
+                use_strength = float(engine_strength) if engine_strength is not None else self.strength
+            except Exception:
+                use_strength = self.strength
+
+            weight = math.sin((cycle_pos / self.blink_duration) * math.pi) * use_strength
         
         # Return a dictionary of weights
         # This allows one behavior to control multiple facial expressions at once
-        return { self.target_name: weight }
-        #return {
-        #    self.target_name: weight,
-        #    self.blink_right: weight,
-        #    self.blink_left: weight
-        #}
+        #return { self.target_name: weight }
+        return {
+            self.target_name: weight,
+            self.blink_right: weight,
+            self.blink_left: weight
+        }
