@@ -81,21 +81,24 @@ from core.components.camera import CameraComponent
 from core.components.mesh import MeshComponent
 
 class Engine:
-    def __init__(self, gn, assets_path):
+    def __init__(self, gn, assets_path, model_config=None):
         self.gn = gn
         self.assets_path = assets_path
+        self.model_config = model_config or {}
 
         if not os.path.exists(self.assets_path):
             print(f"❌ VRM not found: {self.assets_path}")
             self.gn.terminate()
             return
         
-        self.eye_constraints = {
-            "inner_yaw": 8.0,
-            "outer_yaw": 6.0,
-            "up_pitch": 4.0,
-            "down_pitch": 3.0
-        }
+        Defeye_constraints = {
+            "down_pitch": 0.0,
+            "inner_yaw": 17.017000198364258,
+            "outer_yaw": 29.097999572753906,
+            "up_pitch": 5.5329999923706055
+        } 
+
+        self.eye_constraints = self.model_config["eye_constraints"] if self.model_config is not None else Defeye_constraints
 
         file_name = os.path.basename(self.assets_path)
         model_name = os.path.splitext(file_name)[0]
