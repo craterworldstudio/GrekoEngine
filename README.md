@@ -1,127 +1,132 @@
 # 🚀 Greko Engine
 
-A high-performance 3D VRM visualizer built with a Python "Brain" and a C++ OpenGL "Muscle."
+<p align="center">
+  <img src="logo.png" alt="Greko Engine Logo" width="160" />
+</p>
 
-> **TL;DR:** Transitioned to a "Thin-Client" architecture. Python handles the heavy lifting of GLB parsing, while a custom C++ Bridge (pybind11) feeds raw buffers directly to OpenGL 4.3. This bypasses the Assimp "black box" that was stripping facial data in V2.2.
+<p align="center">
+  <strong>Next-Generation Modular 3D Avatar Runtime for VRM 0.0 & VRM 1.0</strong>
+</p>
 
-## 🌟 Features
-* **Hybrid Architecture:** Logic in Python, rendering in C++ via Pybind11.
-* **Smooth Camera:** WASD movement and Mouse-look with Delta-Time normalization.
-* **VRM Loading:** Direct ingestion of `.glb`/`.vrm` files.
-* **Live HUD:** Real-time FPS and Camera coordinate tracking in the terminal.
-
-## 🛠️ Prerequisites
-* **Python 3.10+**
-* **OpenGL 4.3+**
-* **Libraries:** `sudo apt install libglew-dev libglfw3-dev libglm-dev`
-
-## 🚀 Getting Started
-1. **Clone the repo:**
-   ```bash
-    git clone <your-link>
-    cd GrekoEngine
-    chmod +x run.sh
-    ./run.sh
-   ```
-
-🎮 Controls
-
-- W/A/S/D: Move camera (Fly mode).
-- Mouse: Look around.
-- ESC: Toggle mouse lock / Emergency Exit.
-
+<p align="center">
+  <a href="https://github.com/craterworldstudio/GrekoEngine/releases"><img src="https://img.shields.io/github/v/release/craterworldstudio/GrekoEngine?style=for-the-badge&color=blue&label=Latest%20Release" alt="Release" /></a>
+  <img src="https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows-brightgreen?style=for-the-badge" alt="Platforms" />
+  <img src="https://img.shields.io/badge/C%2B%2B-17-blue?style=for-the-badge&logo=cplusplus" alt="C++17" />
+  <img src="https://img.shields.io/badge/OpenGL-4.3%20Core-orange?style=for-the-badge&logo=opengl" alt="OpenGL" />
+  <a href="https://soulfirex.gumroad.com/l/grekoengine"><img src="https://img.shields.io/badge/Gumroad-Get%20Full%20Builds-ff90e8?style=for-the-badge&logo=gumroad" alt="Gumroad" /></a>
+</p>
 
 ---
 
-## 📂 [Native README](./native/README.md)
-This is for the technical details of the C++ rendering core.
+## 📸 Showcase & UI Preview
 
-# 🧠 Greko Native Muscle
+<p align="center">
+  <img src="docs/images/launcher_hub.png" alt="Greko Engine Hub Launcher" width="600" />
+  <br />
+  <em>The modern dark-themed Greko Engine Hub with automated avatar detection and runtime management.</em>
+</p>
 
-This directory contains the low-level rendering logic and the Python-C++ bridge.
+<p align="center">
+  <img src="docs/images/engine_viewport.png" alt="Greko Engine Viewport" width="800" />
+  <br />
+  <em>Real-time OpenGL rendering engine with Dear ImGui studio controls, dynamic lighting, and facial blendshape posing.</em>
+</p>
 
-## 🏗️ Architecture
+<p align="center">
+  <img src="docs/images/avatar_render.png" alt="Greko Engine Avatar Rendering" width="800" />
+  <br />
+  <em>High-fidelity Cel-Shading, outer rim lighting, soft shadow offsets, and animated humanoid bone constraints.</em>
+</p>
 
-### 1. `renderer.cpp`
-The core OpenGL implementation. Handles:
-* **Shader Pipeline:** Compiling and linking GLSL.
-* **Buffer Management:** VAO/VBO/EBO management for VRM meshes.
-* **Input Polling:** Raw GLFW key/mouse handling for sub-millisecond latency.
+---
 
-### 2. `camera.hpp`
-A standalone header-only module for 3D math.
-* **MVP Matrix:** Calculates Model, View, and Projection matrices using GLM.
-* **Clipping:** Configured for high-detail close-ups ($Near = 0.01$).
+## 🌟 Key Features
 
-### 3. `bridge.cpp`
-The **Pybind11** wrapper. It exposes C++ functions to Python as a module named `greko_native`.
+- **⚡ Hybrid High-Performance Architecture**:
+  - **Python Brain**: Handles glTF/GLB structure parsing, phoneme timing sequences, and high-level behavioral logic.
+  - **C++ OpenGL Muscle**: Pybind11 bridge feeding GPU buffers directly to an optimized OpenGL 4.3 Core Profile pipeline.
+- **🎭 Complete VRM 0.0 & VRM 1.0 Support**:
+  - Ingests VRoid Studio, UniGLTF, and custom VRM models natively.
+  - Automatic fallback and normalization across different specification versions.
+- **🧬 Hardware-Accelerated Morph Target Blitting**:
+  - 10 active GPU morph slots with instantaneous delta blitting.
+  - Smooth phoneme sequencing for lip sync (`REST`, `A`, `E`, `I`, `O`, `U`).
+- **🌐 Dual-Language Japanese & English Expression Mapping**:
+  - Automatically identifies Japanese expression targets (`まばたき`, `喜`, `口閉`, `あ`, `え`, `い`, `お`, `う`, `ウィンク`) and binds them to standard slots.
+- **👀 Real-Time Procedural Behaviors**:
+  - Autonomous dynamic blinking with adjustable rate and variance.
+  - Procedural breathing animation with secondary chest/spine dynamics.
+  - Eye Look-At targeting with yaw and pitch constraint limiting.
+- **🎛️ Interactive In-Engine Studio Dock**:
+  - Live Dear ImGui dock with Japanese font atlas support.
+  - Fine-tune cel-shading smoothness, rim light color and intensity, ambient light, and shadow offsets in real-time.
+  - Pose expressions manually with instant configuration saving.
+- **📦 Zero-Dependency Standalone Releases**:
+  - Standalone pre-compiled bundles available for both **Linux (x86_64)** and **Windows (x64)**.
+  - No Python, pip, GCC, or Visual Studio installation required on end-user machines.
 
-## 🛠️ Build Flags
-The engine is compiled with the following flags in `run.sh`:
-* `-fPIC`: Position Independent Code (Required for shared libraries).
-* `-shared`: Compiles into a `.so` file for Python import.
-* `-lGL -lGLEW -lglfw`: Links the essential graphics drivers.
+---
 
-## ⚠️ Known Implementation Details
-* **Depth Testing:** Enabled via `GL_DEPTH_TEST` to prevent 3D "squashing."
-* **Winding Order:** Currently set to `GL_LESS` for standard VRM depth sorting.
-* **VSync Details:** Toggle VSync with
-* ```cpp
-   glfwSwapInterval();
-``` in ```renderer.cpp``` for benchmark testing. 0/1 = off/on
+## 🎮 Navigation & Controls
 
+| Input | Action |
+| :--- | :--- |
+| <kbd>W</kbd> / <kbd>A</kbd> / <kbd>S</kbd> / <kbd>D</kbd> | Move Camera Forward / Left / Backward / Right |
+| <kbd>E</kbd> / <kbd>Q</kbd> | Ascend / Descend Camera (Fly Mode) |
+| <kbd>Mouse</kbd> | Look Around (Yaw & Pitch) |
+| <kbd>ESC</kbd> | Toggle Mouse Capture & Release Cursor for Studio Dock |
 
-## 📋 Engine Documentation & History
-Explore the development milestones and technical snapshots of the Greko Engine.
+---
 
-* **[Snapshot Archive](./snapshots/README.md)** - Version history, changelogs, and "Pink Pancake" era notes.
+## 🚀 Quick Start (Standalone Binaries)
 
-'''
----------------------------
+### 🐧 Linux (x86_64)
+1. Download `GrekoEngine-Linux-x64.tar.gz` from the [Releases](https://github.com/craterworldstudio/GrekoEngine/releases) page.
+2. Extract the archive:
+   ```bash
+   tar -xzf GrekoEngine-Linux-x64.tar.gz
+   cd GrekoEngine-Linux-x64
+   ```
+3. Drop your `.vrm` avatars into the `assets/` folder.
+4. Launch the application:
+   ```bash
+   ./launcher
+   ```
 
-hiddenimports = collect_submodules('core')
-hiddenimports += collect_submodules('core.behaviours')
+### 🪟 Windows (x64)
+1. Download `GrekoEngine-Windows-x64.zip` from the [Releases](https://github.com/craterworldstudio/GrekoEngine/releases) page.
+2. Extract the zip file.
+3. Place your `.vrm` models into the `assets/` directory.
+4. Double-click `launcher.exe`.
 
-datas = collect_data_files('core')
-datas += [('shaders', 'shaders')]
+---
 
+## 💖 Thank You to Our Preview Testers!
 
+> [!NOTE]
+> **A heartfelt thank you** to everyone who has downloaded, run, and benchmarked the early preview builds! Your logs, bug reports, and feedback directly helped us track down complex cross-platform quirks (including Linux GLXFBConfig driver isolation, Wayland protocol scanning, and Windows UTF-8 charmap decoders).
 
+If you encounter any glitches, visual rendering artifacts, or model parsing issues with your VRMs, please open a ticket on our [GitHub Issue Tracker](https://github.com/craterworldstudio/GrekoEngine/issues) with your log output.
 
-a = Analysis(
-    ['launcher.py'],
-    pathex=['.'],
-    binaries=[ ],
-    datas=datas,
-    hiddenimports=hiddenimports,
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    noarchive=False,
-    optimize=0,
-)
-pyz = PYZ(a.pure)
+---
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
-    name='launcher',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,
-    #disable_windowed_traceback=False,
-    #argv_emulation=False,
-    #target_arch=None,
-    #codesign_identity=None,
-    #entitlements_file=None,
-)
+## 🔮 Future Roadmap & Commercial Releases
 
-'''
+Greko Engine is expanding into a comprehensive avatar companion and game engine runtime. Future builds will include:
+- 🎙️ **Live Audio Microphone Lip Sync**: Real-time microphone input streaming directly into the phoneme blendshape sequencer.
+- 🦴 **Full Physics & SpringBone Simulation**: GPU-accelerated secondary hair and clothing collision physics.
+- 🕹️ **VMC & Motion Tracking Protocol**: Support for tracking data ingestion from OpenSeeFace, MediaPipe, and VRChat tracking software.
+- 🎨 **PBR & Custom MToon Shaders**: Advanced cel-shading with subsurface scattering approximations.
+
+> ### 💎 Support the Engine on Gumroad
+> Future production-ready releases, extended feature sets, and commercial standalone tooling will be available for purchase at:
+> 
+> 👉 **[Get Greko Engine on Gumroad](https://soulfirex.gumroad.com/l/grekoengine)**
+> 
+> Purchasing the build helps directly fund dedicated GPU render farm testing, physics engine research, and continuous cross-platform maintenance.
+
+---
+
+## 📄 License & Credits
+- **Greko Engine** © 2026 Crater World Studio / SoulfireX.
+- Powered by [GLFW](https://www.glfw.org/), [GLAD](https://glad.dav1d.de/), [GLM](https://github.com/g-truc/glm), [Dear ImGui](https://github.com/ocornut/imgui), and [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter).
