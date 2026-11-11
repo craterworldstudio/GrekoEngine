@@ -4,6 +4,9 @@
 **Licensor:** Crater World Studio / Craterworldstudio  
 **Product:** Greko Engine (including Launcher Hub, Greko Runtime, native modules, and documentation)
 
+> ### 🛡️ Core Licensing Principle
+> **One purchase. One perpetual license. No mandatory subscriptions. No royalties on your creative output.**
+
 ---
 
 ### IMPORTANT — READ CAREFULLY BEFORE DOWNLOADING, INSTALLING, OR USING
@@ -33,6 +36,19 @@ Subject to Your compliance with this Agreement and payment of applicable license
 
 ### 2.2 Authorized Seats and Devices
 Unless explicitly stated otherwise at the time of purchase, a single-user license permits activation on up to two (2) distinct personal devices owned and operated solely by the designated licensee (e.g., a primary desktop workstation and a portable laptop), provided the Software is not used concurrently by multiple individuals.
+
+### 2.3 Perpetual License and Continued Usage Rights
+A Commercial / Paid License granted under this Agreement is perpetual and does not require recurring subscription payments, periodic renewals, or additional usage fees.
+
+Subject to continued compliance with this Agreement, the Licensee retains the right to use the specific version of Greko Engine licensed at the time of purchase indefinitely.
+
+The following circumstances shall not, by themselves, terminate or invalidate a properly acquired perpetual license:
+1. Discontinuation of Greko Engine development or commercial distribution.
+2. Closure, restructuring, or cessation of business operations by Crater World Studio.
+3. Discontinuation of technical support, updates, or new releases.
+4. Expiration or discontinuation of online licensing infrastructure.
+
+A perpetual license does not guarantee lifetime technical support, future feature releases, compatibility with future operating systems, or continued availability of online services. The license remains subject to the termination provisions and applicable mandatory laws contained in this Agreement.
 
 ---
 
@@ -98,6 +114,16 @@ During activation or periodic verification, the Software collects only minimal, 
 ### 6.4 Data Retention and Protection
 License validation logs are retained solely for the duration of Your active license subscription or account lifecycle to enforce legitimate seat limits and prevent key leaks. We do not sell, rent, or trade Your licensing information to third-party advertisers.
 
+### 6.5 Licensing Continuity and Offline Operation
+Licensor recognizes that perpetual license holders must not become permanently dependent upon the continued operation of Crater World Studio's online licensing infrastructure.
+
+Accordingly:
+1. Licensor shall endeavor to maintain a reasonable means of license verification for legitimate paid license holders.
+2. If online licensing infrastructure is permanently discontinued, Licensor shall make reasonable efforts to provide an offline activation mechanism, alternative license validation method, or equivalent means of continued access to the last commercially licensed version.
+3. The discontinuation of licensing servers shall not, by itself, constitute grounds for revoking or invalidating a legitimate perpetual commercial license.
+
+This provision does not guarantee the continued availability of external services, third-party infrastructure, or technical support.
+
 ---
 
 ## 7. LICENSE REVOCATION AND FAIR APPEAL PROCEDURE
@@ -116,6 +142,15 @@ Licensor recognizes that false positives can occasionally occur (such as during 
 3. **Review Timeline:** Licensor will review and provide a determination on all legitimate appeals within **seven (7) to fourteen (14) business days**.
 4. **Free Reactivation:** If the review indicates that no willful piracy, key reselling, or commercial abuse occurred, Licensor will **reactivate the existing key or issue a replacement key at no charge**.
 
+### 7.3 Protection of Perpetual Commercial Licenses
+A legitimately acquired perpetual commercial license shall not be arbitrarily revoked, expired, or invalidated.
+
+Revocation of a paid license shall be limited to material violations of this Agreement, fraudulent acquisition, confirmed payment fraud, or other legally recognized grounds.
+
+Where reasonably possible, Licensor shall provide notice of the alleged violation and an opportunity to remedy the breach before permanent revocation, except where immediate suspension is reasonably necessary to prevent ongoing piracy, fraud, or unauthorized distribution.
+
+Nothing in this section limits any mandatory statutory rights or remedies available to either party.
+
 ---
 
 ## 8. REFUND POLICY AND DIGITAL PURCHASES
@@ -133,7 +168,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW:
 1. THE SOFTWARE IS PROVIDED ON AN **"AS IS"** AND **"AS AVAILABLE"** BASIS, WITH ALL FAULTS AND DEFECTS.
 2. LICENSOR EXPRESSLY DISCLAIMS ALL WARRANTIES OF ANY KIND, WHETHER STATUTORY, EXPRESS, OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, SYSTEM INTEGRATION, TITLE, AND NON-INFRINGEMENT.
 3. LICENSOR DOES NOT WARRANT THAT THE SOFTWARE WILL FUNCTION WITHOUT BUGS OR GLITCHES, BE COMPATIBLE WITH EVERY USER-CREATED 3D MODEL FILE, OR OPERATE COMPLETELY UNINTERRUPTED.
-4. **CONSUMER PROTECTION CARVE-OUT:** NOTHING IN THIS SECTION RESTRICTS, LIMITS, OR EXCLUDES ANY STATUTORY GUARANTEE, CONSUMER RIGHT, OR REMEDY THAT CANNOT BE LAWFULLY EXCLUDED OR LIMITED UNDER APPLICABLE MANDATORY LEGISLATION (INCLUDING THE CONSUMER PROTECTION ACT, 2019, WHERE APPLICABLE).
+4. **CONSUMER PROTECTION CARVE-OUT:** NOTHING IN THIS SECTION RESTRICTS, LIMITS, OR EXCLUDES ANY STATUTORY GUARANTEE, CONSUMER RIGHT, OR REMEDY THAT CANNOT BE LAWFULLY EXCLUDED OR LIMITED UNDER APPLICABLE MANDATORY CONSUMER PROTECTION STATUTES.
 
 ---
 

@@ -123,6 +123,8 @@ Greko Engine is expanding into a comprehensive avatar companion and game engine 
 > 
 > 👉 **[Get Greko Engine on Gumroad](https://soulfirex.gumroad.com/l/grekoengine)**
 > 
+> *One purchase. One perpetual license. No mandatory subscriptions. No royalties on your creative output.*
+> 
 > Purchasing the build helps directly fund dedicated GPU render farm testing, physics engine research, and continuous cross-platform maintenance.
 
 ---
