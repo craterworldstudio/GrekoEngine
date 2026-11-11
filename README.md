@@ -127,6 +127,7 @@ Greko Engine is expanding into a comprehensive avatar companion and game engine 
 
 ---
 
-## 📄 License & Credits
-- **Greko Engine** © 2026 Crater World Studio / SoulfireX.
+## 📄 License & Terms of Service
+- **Greko Engine** © 2026 Crater World Studio. All Rights Reserved.
+- Use of this software is subject to the [Greko Engine End User License Agreement (EULA) and Terms of Service](LICENSE.md).
 - Powered by [GLFW](https://www.glfw.org/), [GLAD](https://glad.dav1d.de/), [GLM](https://github.com/g-truc/glm), [Dear ImGui](https://github.com/ocornut/imgui), and [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter).
