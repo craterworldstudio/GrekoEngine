@@ -21,19 +21,19 @@
 ## 📸 Showcase & UI Preview
 
 <p align="center">
-  <img src="docs/images/launcher_hub.png" alt="Greko Engine Hub Launcher" width="600" />
+  <img src="pictures/launcher.png" alt="Greko Engine Hub Launcher" width="600" />
   <br />
   <em>The modern dark-themed Greko Engine Hub with automated avatar detection and runtime management.</em>
 </p>
 
 <p align="center">
-  <img src="docs/images/engine_viewport.png" alt="Greko Engine Viewport" width="800" />
+  <img src="pictures/gui.png" alt="Greko Engine Viewport & GUI" width="800" />
   <br />
   <em>Real-time OpenGL rendering engine with Dear ImGui studio controls, dynamic lighting, and facial blendshape posing.</em>
 </p>
 
 <p align="center">
-  <img src="docs/images/avatar_render.png" alt="Greko Engine Avatar Rendering" width="800" />
+  <img src="pictures/avatar.png" alt="Greko Engine Avatar Rendering" width="800" />
   <br />
   <em>High-fidelity Cel-Shading, outer rim lighting, soft shadow offsets, and animated humanoid bone constraints.</em>
 </p>
